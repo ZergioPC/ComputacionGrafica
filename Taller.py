@@ -1,3 +1,12 @@
+"""
+Hecho por:
+-Sofía Victoria Marín
+-Carlos Julian Morales
+-Sergio Palacios
+
+"""
+
+
 import glfw;
 from OpenGL.GL import *;
 import glm;
@@ -5,19 +14,23 @@ from glm import value_ptr;
 import numpy as np;
 import ctypes;
 
+# Shaders
 shaderVertex = """
 #version 330 core
 layout(location = 0) in vec3 posicion;
-void main(){
-    gl_Position = vec4(posicion, 1.0);
+uniform mat4 transformacion;
+void main()
+{
+    gl_Position = transformacion * vec4(posicion, 1.0);
 }
 """;
 
 shaderFragment = """
 #version 330 core
 out vec4 color;
-void main(){
-    color = vec4(0.6, 0.1, 1.0, 0.5);
+void main()
+{
+    color = vec4(1.0, 0.5, 0.5, 0.5);
 }
 """
 
@@ -49,40 +62,34 @@ def programa():
 
     return programa_shader;
 
-# Función para configurar el VAO, VBO y EBO utilizando los datos de vértices e índices proporcionados
 def configurar_vao(vertices, indices):
-    VAO = glGenVertexArrays(1)  # Generar un VAO (Vertex Array Object)
-    VBO = glGenBuffers(1)       # Generar un VBO (Vertex Buffer Object)
-    EBO = glGenBuffers(1)       # Generar un EBO (Element Buffer Object)
+    VAO = glGenVertexArrays(1)
+    VBO = glGenBuffers(1)
+    EBO = glGenBuffers(1)
 
-    glBindVertexArray(VAO)  # Vincular el VAO
+    glBindVertexArray(VAO)
 
-    # Vincular y establecer los datos del VBO
     glBindBuffer(GL_ARRAY_BUFFER, VBO)
     glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
 
-    # Vincular y establecer los datos del EBO
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
 
-    # Especificar cómo se deben interpretar los datos de los vértices
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * vertices.itemsize, ctypes.c_void_p(0))
-    glEnableVertexAttribArray(0)  # Habilitar el atributo de vértices en la posición 0
+    glEnableVertexAttribArray(0)
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0)  # Desvincular el VBO
-    glBindVertexArray(0)  # Desvincular el VAO
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    glBindVertexArray(0)
 
-    return VAO, VBO, EBO  # Devolver los IDs del VAO, VBO y EBO
+    return VAO, VBO, EBO
 
-# Función para dibujar un cubo utilizando un programa de shader y un VAO específicos
-def dibujar_cubo(programa_shader, VAO, transformacion):
-    glUseProgram(programa_shader)  # Usar el programa de shader proporcionado
-    transform_loc = glGetUniformLocation(programa_shader, "transformacion")  # Obtener la ubicación del uniform "transform"
-    glUniformMatrix4fv(transform_loc, 1, GL_FALSE, value_ptr(transformacion))  # Establecer la matriz de transformación
-    glBindVertexArray(VAO)  # Vincular el VAO que contiene los datos del cubo
-    glDrawElements(GL_LINES, 36, GL_UNSIGNED_INT, None)  # Dibujar el cubo usando los índices en el EBO
-    glBindVertexArray(0)  # Desvincular el VAO
-
+def dibujar_objeto(programa_shader, VAO, transformacion, indices_count):
+    glUseProgram(programa_shader)
+    transform_loc = glGetUniformLocation(programa_shader, "transformacion")
+    glUniformMatrix4fv(transform_loc, 1, GL_FALSE, value_ptr(transformacion))
+    glBindVertexArray(VAO)
+    glDrawElements(GL_LINES, indices_count, GL_UNSIGNED_INT, None)
+    glBindVertexArray(0)
 
 def prisma():
     vertex = [0.5,0.4,0.5,
@@ -97,7 +104,6 @@ def prisma():
 
     for p in range(len(vertex)):
         vertex[p] = vertex[p]*0.5
-        #vertex[p] = vertex[p]+0.3
 
     index = [
         0,1,2,2,3,0,
@@ -112,8 +118,9 @@ def prisma():
     index = np.array(index,dtype=np.uint32).flatten();
     return vertex, index;
 
-def efera(radio, nstack, nsectors):
+def esfera(radio, nstack, nsectors):
     vertices = []
+    indices = []
     dfi = np.pi / nstack
     dteta = 2 * np.pi / nsectors
     for i in range(nstack + 1):
@@ -124,32 +131,37 @@ def efera(radio, nstack, nsectors):
             teta = j * dteta
             x = temp * np.sin(teta)
             z = temp * np.cos(teta)
-            vertices.append([x, z, y])
-    vertices = np.array(vertices, dtype=np.float32)
-    return vertices
+            vertices.append([x])
+            vertices.append([y+0.45])
+            vertices.append([z])
+            if i < nstack and j < nsectors:
+                first = i * (nsectors + 1) + j
+                second = first + nsectors + 1
+                indices.append(first)
+                indices.append(second)
+                indices.append(first + 1)
+                indices.append(second)
+                indices.append(second + 1)
+                indices.append(first + 1)
 
-def rotArb(punto,eje,angulo):
-    normalEje = glm.normalize(eje)
-    
-    anguloY = glm.atan(normalEje.z,normalEje.x)
-    rotY = glm.rotate(glm.mat4(1.0),-anguloY,glm.vec3(0.0,1.0,0.0))
-    vectorTransformado = rotY*glm.vec4(normalEje,1.0)
+    vertices = np.array(vertices, dtype=np.float32).flatten()
+    indices = np.array(indices, dtype=np.uint32)
+    return vertices, indices
 
-    anguloX = glm.atan(vectorTransformado.y,vectorTransformado.z)
-    rotX = glm.rotate(glm.mat4(1.0),-anguloX,glm.vec3(1.0,0.0,0.0))
-
-    traslaOrigen = glm.translate(glm.mat4(1.0),-punto)
-    rotZ = glm.rotate(glm.mat4(1.0), angulo, glm.vec3(0.0, 0.0, 1.0))   # Rotación alrededor del eje z (alineado)
-    desrotacion_x = glm.rotate(glm.mat4(1.0), anguloX, glm.vec3(1.0, 0.0, 0.0))  # Inversa de la rotación X
-    desrotacion_y = glm.rotate(glm.mat4(1.0), anguloY, glm.vec3(0.0, 1.0, 0.0))  # Inversa de la rotación Y
-    destraslacion_origen = glm.translate(glm.mat4(1.0), punto)
-
-    # Multiplicar las matrices en el orden correcto para obtener la transformación final
-    transformacion_final = destraslacion_origen * desrotacion_y * desrotacion_x * rotZ * rotX * rotY * traslaOrigen
-
+def rotArb(punto_rotacion,eje_arbitrario,angulo): 
+    eje_arbitrario_normalizado = glm.normalize(eje_arbitrario)
+    angulo_y = glm.atan(eje_arbitrario_normalizado.z, eje_arbitrario_normalizado.x)
+    rotacion_y = glm.rotate(glm.mat4(1.0), angulo_y, glm.vec3(0.0, 1.0, 0.0))
+    vector_transformado = rotacion_y * glm.vec4(eje_arbitrario_normalizado,1.0)
+    angulo_x = glm.atan(vector_transformado.y, vector_transformado.z)
+    rotacion_x = glm.rotate(glm.mat4(1.0), angulo, glm.vec3(0.0, 0.0, 1.0))
+    traslacion_origen = glm.translate(glm.mat4(1.0), -punto_rotacion)
+    rotacion_z = glm.rotate(glm.mat4(1.0), angulo, glm.vec3(0.0, 0.0, 1.0))
+    desrotacion_x = glm.rotate(glm.mat4(1.0), angulo_x, glm.vec3(1.0, 0.0, 0.0))
+    desrotacion_y = glm.rotate(glm.mat4(1.0), angulo_y, glm.vec3(0.0, 1.0, 0.0))
+    destraslacion_origen = glm.translate(glm.mat4(1.0), punto_rotacion)
+    transformacion_final = destraslacion_origen * desrotacion_y * desrotacion_x * rotacion_z * rotacion_x * rotacion_y * traslacion_origen
     return transformacion_final
-
-                                                                                     
 
 def main():
     if not glfw.init():
@@ -162,34 +174,43 @@ def main():
 
     glfw.make_context_current(screen);
 
-    vertices,indices = prisma();
-    puntoRot = glm.vec3(3.0,-2.0,5.0)
-    ejeRot = glm.vec3(1.5,0.8,1.1)
-    angulo = glm.radians(50)
+    vertices_prisma, indices_prisma = prisma()
+    vertices_esfera, indices_esfera = esfera(0.25, 10, 10)
 
-    # Crear y compilar el programa de shaders
+    puntoRot = glm.vec3(0.5, 0.2, -0.5)
+    ejeRot = glm.vec3(0.3, 0.8, 0.1)
+    angulo = glm.radians(20)
+
     programa_shader = programa()
 
-
-    VAO,VBO,EBO = configurar_vao(vertices,indices)
+    VAO_prisma, VBO_prisma, EBO_prisma = configurar_vao(vertices_prisma, indices_prisma)
+    VAO_esfera, VBO_esfera, EBO_esfera = configurar_vao(vertices_esfera, indices_esfera)
 
     glPointSize(10)
-    glUseProgram(programa_shader);
-
-    #print(rotArb(puntoRot,ejeRot,angulo))
 
     while not glfw.window_should_close(screen):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        transform = rotArb(puntoRot,ejeRot,angulo)
-        dibujar_cubo(programa_shader,VAO,transform)
+        transform_prisma = rotArb(puntoRot, ejeRot, angulo)
+        transform_esfera = glm.translate(transform_prisma, glm.vec3(0.0, 0.6, 0.0))  # Mueve la esfera encima del prisma
+
+        #Figura Transformada
+        dibujar_objeto(programa_shader, VAO_prisma, transform_prisma, len(indices_prisma))
+        dibujar_objeto(programa_shader, VAO_esfera, transform_esfera, len(indices_esfera))
+
+        #Figura en su estado inicial
+        #dibujar_objeto(programa_shader, VAO_prisma, glm.mat4(1.0), len(indices_prisma))
+        #dibujar_objeto(programa_shader, VAO_esfera, glm.mat4(1.0), len(indices_esfera))
 
         glfw.swap_buffers(screen);
         glfw.poll_events(); 
 
-    glDeleteVertexArrays(1,[VAO]);
-    glDeleteBuffers(1,[VBO]);
-    glDeleteBuffers(1,[EBO]);
+    glDeleteVertexArrays(1, [VAO_prisma])
+    glDeleteBuffers(1, [VBO_prisma])
+    glDeleteBuffers(1, [EBO_prisma])
+    glDeleteVertexArrays(1, [VAO_esfera])
+    glDeleteBuffers(1, [VBO_esfera])
+    glDeleteBuffers(1, [EBO_esfera])
     glDeleteProgram(programa_shader)
 
     glfw.terminate();
