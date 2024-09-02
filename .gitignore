@@ -1,2 +1,6 @@
-entr/
+bin/
+include/
+lib/
+lib64
+*.cfg
 *.txt
