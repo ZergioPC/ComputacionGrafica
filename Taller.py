@@ -85,20 +85,20 @@ def configurar_vao(vertices, indices):
 
 def dibujar_objeto(programa_shader, VAO, transformacion, indices_count):
     glUseProgram(programa_shader)
-    glUniformMatrix4fv(transform_loc, 1, GL_FALSE, value_ptr(transformacion))
+    glUniformMatrix4fv(transformacion, 1, GL_FALSE, value_ptr(transformacion))
     glBindVertexArray(VAO)
     glDrawElements(GL_LINES, indices_count, GL_UNSIGNED_INT, None)
     glBindVertexArray(0)
 
 def prisma():
     vertex = [0.5,0.4,0.5,
-              0.5,0.4,-0.5,
-              -0.5,0.4,-0.5,
-              -0.5,0.4,0.5,
-              0.5,-1.0,0.5,
-              0.5,-1.0,-0.5,
-              -0.5,-1.0,-0.5,
-              -0.5,-1.0,0.5, 
+            0.5,0.4,-0.5,
+            -0.5,0.4,-0.5,
+            -0.5,0.4,0.5,
+            0.5,-1.0,0.5,
+            0.5,-1.0,-0.5,
+            -0.5,-1.0,-0.5,
+            -0.5,-1.0,0.5, 
     ];
 
     for p in range(len(vertex)):
