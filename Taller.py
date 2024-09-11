@@ -85,7 +85,6 @@ def configurar_vao(vertices, indices):
 
 def dibujar_objeto(programa_shader, VAO, transformacion, indices_count):
     glUseProgram(programa_shader)
-    transform_loc = glGetUniformLocation(programa_shader, "transformacion")
     glUniformMatrix4fv(transform_loc, 1, GL_FALSE, value_ptr(transformacion))
     glBindVertexArray(VAO)
     glDrawElements(GL_LINES, indices_count, GL_UNSIGNED_INT, None)
