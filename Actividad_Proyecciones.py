@@ -1,4 +1,15 @@
-# Online Python - IDE, Editor, Compiler, Interpreter
+"""
+Hecho por: Sergio Danilo Palacios
+Codigo: 6000806
+
+Utilizar las teclas correspondientes a los números [1] [2] [3] y [4] para cambiar de visualización teniendo en cuenta:
+    1. Sin proyección ni vista.
+    2. Con proyección de perspectiva y vista UVN
+    3. Con proyección ortogonal y vista Look-At
+    4. Con proyección oblicua y vista Look-A
+
+"""
+
 import glfw 
 from OpenGL.GL import * 
 import numpy as np 
@@ -22,7 +33,7 @@ Codigo_shaderFragmentos1 = """
 out vec4 color;
 void main()
 {
-    color = vec4(1.5, 0.1, 0.5, 1.0);
+    color = vec4(1.0, 0.5, 0.2, 1.0);
     
 }
 """
@@ -32,7 +43,17 @@ Codigo_shaderFragmentos2 = """
 out vec4 color;
 void main()
 {
-    color = vec4(0.0, 1.0, 0.0, 1.0);
+    color = vec4(0.0, 0.5, 0.0, 1.0);
+    
+}
+"""
+
+Codigo_shaderFragmentos3 = """
+#version 330 core
+out vec4 color;
+void main()
+{
+    color = vec4(1.0, 1.0, 1.0, 1.0);
     
 }
 """
@@ -112,6 +133,29 @@ def elipsoide(radio,nstack,nsectors,delta):
     indices = np.array(indices, dtype=np.uint32)
     return vertices, indices
 
+def Orbita(r,lineas):
+    vertices = []
+    indices = []
+
+    # Generar vértices en coordenadas cilíndricas
+    for th in range(lineas):
+        theta = 2 * np.pi * th / lineas  # Distribuir en la circunferencia
+        x = r * np.sin(theta)
+        z = r * np.cos(theta)
+        y = 0  # La órbita está en el plano XZ, con Y = 0
+        vertices.append((x, y, z))
+
+        # Generar índices con líneas entrecortadas
+        # Cada segundo vértice conecta, el siguiente no (efecto entrecortado)
+        if th > 0 and th % 2 == 0:
+            indices.append(th - 1)  # Conectar al vértice anterior
+            indices.append(th)
+
+    vertices = np.array(vertices, dtype=np.float32).flatten()
+    indices = np.array(indices, dtype=np.uint32)
+
+    return vertices, indices
+
 def matriz_vista(ojo, centro, arriba):
     f = np.array(centro)-np.array(ojo)
     f = f/np.linalg.norm(f) 
@@ -143,10 +187,10 @@ def matriz_perspectiva(fovY, aspecto,cerca,lejos):
     
     return M
 
-def matriz_uvn(n,v, vrp):
+def matriz_vista_uvn(n,v, vrp):
     n=np.array(n)
     v=np.array(v)
-    u=np.dot(v,n)
+    u=np.cross(v,n)
     n=n/np.linalg.norm(n)
     v=v/np.linalg.norm(v)
     u=u/np.linalg.norm(u)
@@ -160,13 +204,16 @@ def matriz_uvn(n,v, vrp):
     M[0,3], M[1,3], M[2,3]= -a,-b,-c
     return M
 
-def matriz_orto(iac,dl): #IAC: izq, arriba, cerca
+def matriz_pr_orto(iuc,dal): #IAC: izq, arriba, cerca
     t=np.identity(4)
-    i,u,c = iac
-    d,a,l = dl
+    iuc=np.array(iuc)
+    dal=np.array(dal)
+    i,u,c = iuc
+    d,a,l = dal
     t[0,3], t[1,3], t[2,3] =-(d+i)/2, -(u+a)/2,(l+c)/2
     s=np.identity(4)
-    s[0,0], s[1,1],s[2,2] = 2/(d-i),2/(u,a),-2/(c-l)
+    s[0,0], s[1,1],s[2,2] = 2/(d-i),2/(u-a),-2/(c-l)
+    
     return s@t
 
 def teclado(ventana,tecla, cescan, accion, modifica):
@@ -174,16 +221,19 @@ def teclado(ventana,tecla, cescan, accion, modifica):
     
     if tecla == glfw.KEY_2 and accion == glfw.PRESS:
         vista_2 = True
+        vista_1 = False
         vista_3 = False
         vista_4 = False
         print(f"vista_2: {vista_2}")
     elif tecla == glfw.KEY_3 and accion == glfw.PRESS:
         vista_3 = True
+        vista_1 = False
         vista_2 = False
         vista_4 = False
         print(f"vista_3: {vista_3}")
     elif tecla == glfw.KEY_4 and accion == glfw.PRESS:
         vista_4 = True
+        vista_1 = False
         vista_2 = False
         vista_3 = False
         print(f"vista_4: {vista_4}")
@@ -204,14 +254,17 @@ def dibujarFigura(indices,VAO,shader,uvista,modelo_vista,uproyeccion,modelo_proy
     glBindVertexArray(0)
 
 def main():
-    global vista_2
+    global vista_1, vista_2, vista_3, vista_4
+    vista_1=True
     vista_2=False
+    vista_3=False
+    vista_4=False
     
     if not glfw.init():
         return
 
     a,b =800,600
-    ventana = glfw.create_window(a, b, "Proyecciones - Actividad", None, None)
+    ventana = glfw.create_window(a, b, "Proyecciones - Sergio Palacios", None, None)
     
     if not ventana: 
         glfw.terminate()
@@ -221,34 +274,50 @@ def main():
     glfw.set_key_callback(ventana, teclado)
 
     #vertices, indices = generar_prismaHex( altura, radio)
-    vertices_e1, indices_e1 = elipsoide(0.14,10,10,0.3)
-    vertices_e2, indices_e2 = elipsoide(0.2,10,10,-0.3)
+    vertices_e1, indices_e1 = elipsoide(0.2,10,10,0)
+    vertices_e2, indices_e2 = elipsoide(0.05,10,10,0.7)
+    vertices_orb, indices_orb = Orbita(0.7, 24)
     
     try:
         programa_shader_1 = crear_programa_shader(Codigo_shaderFragmentos1)
         programa_shader_2 = crear_programa_shader(Codigo_shaderFragmentos2)
+        programa_shader_3 = crear_programa_shader(Codigo_shaderFragmentos3)
 
         VAO_e1, VBO_e1, EBO_e1 = config_Buffers(vertices_e1,indices_e1)
         VAO_e2, VBO_e2, EBO_e2 = config_Buffers(vertices_e2,indices_e2)
+        VAO_orb, VBO_orb, EBO_orb = config_Buffers(vertices_orb,indices_orb)
         
         uvista= glGetUniformLocation(programa_shader_1, "vista")
         uproyeccion= glGetUniformLocation(programa_shader_1, "proyeccion")
         umodelo= glGetUniformLocation(programa_shader_1, "transformacion")
 
-        vista=matriz_vista([-0.15,0.2,2],[0,0,0],[0,1,0])
-        proyeccion= matriz_perspectiva(45, a/b, 1, 5)
+        view_base = matriz_vista([-0.15,0.2,2],[0,0,0],[0,1,0])
+        view_uvn = matriz_vista_uvn([-1,20,1],[30,-10,-90],[0,1.2,0])
+        
+        proyeccion_perspectiva = matriz_perspectiva(45, a/b, 1, 5)
+        proyeccion_ortogonal = matriz_pr_orto([-2,2,-20],[2,-2,20])
         
         while not glfw.window_should_close(ventana):
-            glClearColor(0.2 ,0.2 ,0.2 ,0.1 )
+            glClearColor(0.3 ,0.2 ,0.3 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             
-            if vista_2:
-                dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,vista,uproyeccion,proyeccion,umodelo,np.identity(4))
-                dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,vista,uproyeccion,proyeccion,umodelo,np.identity(4))
-            else:
+            if vista_1:
                 dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
                 dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
-            
+                dibujarFigura(indices_orb,VAO_orb,programa_shader_3,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
+            elif vista_2:
+                dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,view_uvn,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
+                dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,view_uvn,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
+                dibujarFigura(indices_orb,VAO_orb,programa_shader_3,uvista,view_uvn,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
+            elif vista_3:
+                dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,view_base,uproyeccion,proyeccion_ortogonal,umodelo,np.identity(4))
+                dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,view_base,uproyeccion,proyeccion_ortogonal,umodelo,np.identity(4))
+                dibujarFigura(indices_orb,VAO_orb,programa_shader_3,uvista,view_base,uproyeccion,proyeccion_ortogonal,umodelo,np.identity(4))
+            elif vista_4:
+                dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,view_base,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
+                dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,view_base,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
+                dibujarFigura(indices_orb,VAO_orb,programa_shader_3,uvista,view_base,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
+
             glfw.swap_buffers(ventana)
             glfw.poll_events()
 
@@ -259,12 +328,16 @@ def main():
     
         glDeleteVertexArrays(1, [VAO_e1])
         glDeleteVertexArrays(1, [VAO_e2])
+        glDeleteVertexArrays(1, [VAO_orb])
         glDeleteBuffers(1, [VBO_e1])
         glDeleteBuffers(1, [VBO_e2])
+        glDeleteBuffers(1, [VBO_orb])
         glDeleteBuffers(1, [EBO_e1])
         glDeleteBuffers(1, [EBO_e2])
+        glDeleteBuffers(1, [EBO_orb])
         glDeleteProgram(programa_shader_1)
         glDeleteProgram(programa_shader_2)
+        glDeleteProgram(programa_shader_3)
         
     glfw.terminate()
 
