@@ -45,27 +45,44 @@ def compilar_shader(codigo, tipo_shader):
         raise RuntimeError(glGetShaderInfoLog(shader))
     return shader 
 
-def crear_programa_shader():
+def crear_programa_shader(frag_Code):
     shader_vertices = compilar_shader(Codigo_shaderVertices, GL_VERTEX_SHADER)
-    shader_fragmentos1 = compilar_shader(Codigo_shaderFragmentos1, GL_FRAGMENT_SHADER)
-    shader_fragmentos2 = compilar_shader(Codigo_shaderFragmentos2, GL_FRAGMENT_SHADER)
+    shader_fragmentos = compilar_shader(frag_Code, GL_FRAGMENT_SHADER)
 
     programa_shader = glCreateProgram()
     glAttachShader(programa_shader, shader_vertices)
-    glAttachShader(programa_shader, shader_fragmentos1)
+    glAttachShader(programa_shader, shader_fragmentos)
     glLinkProgram(programa_shader)
     if glGetProgramiv(programa_shader, GL_LINK_STATUS) != GL_TRUE:
         raise RuntimeError(glGetProgramInfoLog(programa_shader))
 
     glDeleteShader(shader_vertices)
-    glDeleteShader(shader_fragmentos1)
+    glDeleteShader(shader_fragmentos)
     
     return programa_shader 
 
 def config_Buffers(vertices,indices):
-    pass
+    VAO = glGenVertexArrays(1)
+    VBO = glGenBuffers(1)
+    EBO = glGenBuffers(1)
 
-def elipsoide(radio,nstack,nsectors):
+    glBindVertexArray(VAO)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO)
+    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * vertices.itemsize, ctypes.c_void_p(0))
+    glEnableVertexAttribArray(0)
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0)
+    
+    glBindVertexArray(0)
+    
+    return VAO, VBO, EBO
+
+def elipsoide(radio,nstack,nsectors,delta):
     vertices = []
     indices = []
     dfi = np.pi / nstack
@@ -78,7 +95,7 @@ def elipsoide(radio,nstack,nsectors):
             teta = j * dteta
             x = temp * np.sin(teta)
             z = temp * np.cos(teta)
-            vertices.append([x*1.4])
+            vertices.append([(x*1.6)+delta])
             vertices.append([y])
             vertices.append([z])
             if i < nstack and j < nsectors:
@@ -93,34 +110,6 @@ def elipsoide(radio,nstack,nsectors):
 
     vertices = np.array(vertices, dtype=np.float32).flatten()
     indices = np.array(indices, dtype=np.uint32)
-    return vertices, indices
-
-def generar_prismaHex(h,r):
-    vertices = []
-    posz = 0.4
-    for  j in [-posz,-(posz+1) ]:
-        for i in range(6):
-            teta =2* np.pi * i/ 6
-            x= r*np.cos(teta)
-            y= r*np.sin(teta)
-            z= j*h/2
-            vertices.append([x,y,z])
-
-    vertices = np.array (vertices, dtype=np.float32)
-    
-    indices = []
-    
-    for i in range (6):
-        indices.append([i,(i+1)%6])
-        
-    for i in range(6):
-        indices.append([i+6, (i+1) % 6 +6])
-        
-    for i in range (6):
-        indices.append([i,i+6])
-
-    indices = np.array (indices, dtype=np.uint32). flatten()
-    
     return vertices, indices
 
 def matriz_vista(ojo, centro, arriba):
@@ -186,8 +175,16 @@ def teclado(ventana,tecla, cescan, accion, modifica):
         usar_proyeccion = not usar_proyeccion
         print(f"usar_proyeccion: {usar_proyeccion}")
 
+def dibujarFigura(indices,VAO,shader,uvista,modelo_vista,uproyeccion,modelo_proyeccion,umodelo,modelo_figura):
+    glUseProgram(shader)
+    glUniformMatrix4fv(uvista, 1, GL_FALSE, modelo_vista.flatten())        
+    glUniformMatrix4fv(uproyeccion,1,GL_FALSE,modelo_proyeccion.flatten())
+    glUniformMatrix4fv(umodelo, 1, GL_FALSE, modelo_figura.flatten())
+    glBindVertexArray(VAO)
+    glDrawElements(GL_LINES, len(indices), GL_UNSIGNED_INT, None)
+    glBindVertexArray(0)
+
 def main():
-    
     global usar_proyeccion
     usar_proyeccion=False
     
@@ -195,7 +192,7 @@ def main():
         return
 
     a,b =800,600
-    ventana = glfw.create_window(a, b, "SI SE PUEDE", None, None)
+    ventana = glfw.create_window(a, b, "Proyecciones - Actividad", None, None)
     
     if not ventana: 
         glfw.terminate()
@@ -204,66 +201,34 @@ def main():
     glfw.make_context_current(ventana)
     glfw.set_key_callback(ventana, teclado)
 
-    altura = 0.4
-    radio = 0.3    
     #vertices, indices = generar_prismaHex( altura, radio)
-    vertices, indices = elipsoide(radio,10,10)
+    vertices_e1, indices_e1 = elipsoide(0.14,10,10,0.3)
+    vertices_e2, indices_e2 = elipsoide(0.2,10,10,-0.3)
     
     try:
-        programa_shader = crear_programa_shader()
+        programa_shader_1 = crear_programa_shader(Codigo_shaderFragmentos1)
+        programa_shader_2 = crear_programa_shader(Codigo_shaderFragmentos2)
 
-        VAO = glGenVertexArrays(1)
-        VBO = glGenBuffers(1)
-        EBO = glGenBuffers(1)
-
-        glBindVertexArray(VAO)
-        glBindBuffer(GL_ARRAY_BUFFER, VBO)
-        glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
-    
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * vertices.itemsize, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(0)
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        VAO_e1, VBO_e1, EBO_e1 = config_Buffers(vertices_e1,indices_e1)
+        VAO_e2, VBO_e2, EBO_e2 = config_Buffers(vertices_e2,indices_e2)
         
-        glBindVertexArray(0)
-        
-        uvista= glGetUniformLocation(programa_shader, "vista")
-        uproyeccion= glGetUniformLocation(programa_shader, "proyeccion")
-        umodelo= glGetUniformLocation(programa_shader, "transformacion")
+        uvista= glGetUniformLocation(programa_shader_1, "vista")
+        uproyeccion= glGetUniformLocation(programa_shader_1, "proyeccion")
+        umodelo= glGetUniformLocation(programa_shader_1, "transformacion")
+
+        vista=matriz_vista([-0.15,0.2,2],[0,0,0],[0,1,0])
+        proyeccion= matriz_perspectiva(45, a/b, 1, 5)
         
         while not glfw.window_should_close(ventana):
-            
             glClearColor(0.2 ,0.2 ,0.2 ,0.1 )
-            
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-            glUseProgram(programa_shader)
-            
-            
-            ###
             
             if usar_proyeccion:
-                vista=matriz_vista([-0.15,0.2,2],[0,0,0],[0,1,0])
-                proyeccion= matriz_perspectiva(45, a/b, 1, 5)
-                glUniformMatrix4fv(uvista,1,GL_FALSE, vista.flatten())
-                glUniformMatrix4fv(uproyeccion,1,GL_FALSE,proyeccion.flatten())
-                
+                dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,vista,uproyeccion,proyeccion,umodelo,np.identity(4))
+                dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,vista,uproyeccion,proyeccion,umodelo,np.identity(4))
             else:
-                glUniformMatrix4fv(uvista,1,GL_FALSE,np.identity(4).flatten())
-                glUniformMatrix4fv(uproyeccion,1,GL_FALSE, np.identity(4).flatten())
-            
-            
-            modelo_prisma = np.identity(4)
-            modelo_prisma[0,3] =0.5
-            glUniformMatrix4fv(umodelo, 1, GL_FALSE, modelo_prisma.flatten())
-            
-                
-            glBindVertexArray(VAO)
-            glDrawElements(GL_LINES, len(indices), GL_UNSIGNED_INT, None)
-            glBindVertexArray(0)
+                dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
+                dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
             
             glfw.swap_buffers(ventana)
             glfw.poll_events()
@@ -273,13 +238,16 @@ def main():
     
     finally:
     
-        glDeleteVertexArrays(1, [VAO])
-        glDeleteBuffers(1, [VBO])
-        glDeleteBuffers(1, [EBO])
-        glDeleteProgram(programa_shader)
+        glDeleteVertexArrays(1, [VAO_e1])
+        glDeleteVertexArrays(1, [VAO_e2])
+        glDeleteBuffers(1, [VBO_e1])
+        glDeleteBuffers(1, [VBO_e2])
+        glDeleteBuffers(1, [EBO_e1])
+        glDeleteBuffers(1, [EBO_e2])
+        glDeleteProgram(programa_shader_1)
+        glDeleteProgram(programa_shader_2)
         
-        
-        glfw.terminate()
+    glfw.terminate()
 
 #usar las teclas para variar los valores
 if __name__ == "__main__":
