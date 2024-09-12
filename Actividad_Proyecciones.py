@@ -170,10 +170,29 @@ def matriz_orto(iac,dl): #IAC: izq, arriba, cerca
     return s@t
 
 def teclado(ventana,tecla, cescan, accion, modifica):
-    global usar_proyeccion
-    if tecla == glfw.KEY_P and accion == glfw.PRESS:
-        usar_proyeccion = not usar_proyeccion
-        print(f"usar_proyeccion: {usar_proyeccion}")
+    global vista_1, vista_2, vista_3, vista_4
+    
+    if tecla == glfw.KEY_2 and accion == glfw.PRESS:
+        vista_2 = True
+        vista_3 = False
+        vista_4 = False
+        print(f"vista_2: {vista_2}")
+    elif tecla == glfw.KEY_3 and accion == glfw.PRESS:
+        vista_3 = True
+        vista_2 = False
+        vista_4 = False
+        print(f"vista_3: {vista_3}")
+    elif tecla == glfw.KEY_4 and accion == glfw.PRESS:
+        vista_4 = True
+        vista_2 = False
+        vista_3 = False
+        print(f"vista_4: {vista_4}")
+    elif tecla == glfw.KEY_1 and accion == glfw.PRESS:
+        vista_1 = True
+        vista_2 = False
+        vista_3 = False
+        vista_4 = False
+        print(f"vista_1: {vista_1}")
 
 def dibujarFigura(indices,VAO,shader,uvista,modelo_vista,uproyeccion,modelo_proyeccion,umodelo,modelo_figura):
     glUseProgram(shader)
@@ -185,8 +204,8 @@ def dibujarFigura(indices,VAO,shader,uvista,modelo_vista,uproyeccion,modelo_proy
     glBindVertexArray(0)
 
 def main():
-    global usar_proyeccion
-    usar_proyeccion=False
+    global vista_2
+    vista_2=False
     
     if not glfw.init():
         return
@@ -223,7 +242,7 @@ def main():
             glClearColor(0.2 ,0.2 ,0.2 ,0.1 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             
-            if usar_proyeccion:
+            if vista_2:
                 dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,vista,uproyeccion,proyeccion,umodelo,np.identity(4))
                 dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,vista,uproyeccion,proyeccion,umodelo,np.identity(4))
             else:
