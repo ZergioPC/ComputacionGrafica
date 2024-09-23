@@ -38,16 +38,6 @@ Codigo_shaderFragmentos2 = """
 out vec4 color;
 void main()
 {
-    color = vec4(0.0, 0.5, 0.0, 1.0);
-    
-}
-"""
-
-Codigo_shaderFragmentos3 = """
-#version 330 core
-out vec4 color;
-void main()
-{
     color = vec4(1.0, 1.0, 1.0, 1.0);
     
 }
@@ -98,57 +88,48 @@ def config_Buffers(vertices,indices):
     
     return VAO, VBO, EBO
 
-def elipsoide(radio,nstack,nsectors,delta):
-    vertices = []
-    indices = []
-    dfi = np.pi / nstack
-    dteta = 2 * np.pi / nsectors
-    for i in range(nstack + 1):
-        fi = -np.pi / 2 + i * dfi
-        temp = radio * np.cos(fi)
-        y = radio * np.sin(fi)
-        for j in range(nsectors + 1):
-            teta = j * dteta
-            x = temp * np.sin(teta)
-            z = temp * np.cos(teta)
-            vertices.append([(x*1.6)+delta])
-            vertices.append([y])
-            vertices.append([z])
-            if i < nstack and j < nsectors:
-                first = i * (nsectors + 1) + j
-                second = first + nsectors + 1
-                indices.append(first)
-                indices.append(second)
-                indices.append(first + 1)
-                indices.append(second)
-                indices.append(second + 1)
-                indices.append(first + 1)
+def curva_potencial(y,a):
+    return y*np.exp(a)
 
-    vertices = np.array(vertices, dtype=np.float32).flatten()
-    indices = np.array(indices, dtype=np.uint32)
-    return vertices, indices
+def curva_logaritmica(y,a):
+    return np.log(y)/np.log(a)
 
-def Orbita(r,lineas):
+def superficie(directriz,a):
     vertices = []
     indices = []
 
-    # Generar vértices en coordenadas cilíndricas
-    for th in range(lineas):
-        theta = 2 * np.pi * th / lineas  # Distribuir en la circunferencia
-        x = r * np.sin(theta)
-        z = r * np.cos(theta)
-        y = 0  # La órbita está en el plano XZ, con Y = 0
-        vertices.append((x, y, z))
+    p_camino = np.linspace(0,2*np.pi,100)
+    p_perfil = np.linspace(0,2,40)
 
-        # Generar índices con líneas entrecortadas
-        # Cada segundo vértice conecta, el siguiente no (efecto entrecortado)
-        if th > 0 and th % 2 == 0:
-            indices.append(th - 1)  # Conectar al vértice anterior
-            indices.append(th)
+    for th in p_camino[:-1]:
+        for y in p_perfil:
+            for angulo in [th,th+np.diff(p_camino)[0]]:
+                r = directriz(y,a)
+                x = r*np.cos(angulo)
+                z = r*np.sin(angulo)
+
+                vertices.append([x,y,z])
+
+    # Crear los indices
+    for i in range(len(p_camino) - 1):
+        for j in range(len(p_perfil) - 1):
+            # Índices de los cuatro vértices del cuadrado en la malla
+            v0 = i * len(p_perfil) + j
+            v1 = (i + 1) * len(p_perfil) + j
+            v2 = (i + 1) * len(p_perfil) + (j + 1)
+            v3 = i * len(p_perfil) + (j + 1)
+
+            # Crear dos triángulos para cada cuadrado
+            indices.append(v0)
+            indices.append(v1)
+            indices.append(v2)
+
+            indices.append(v0)
+            indices.append(v2)
+            indices.append(v3)
 
     vertices = np.array(vertices, dtype=np.float32).flatten()
     indices = np.array(indices, dtype=np.uint32)
-
     return vertices, indices
 
 def matriz_vista(ojo, centro, arriba):
@@ -218,7 +199,7 @@ def dibujarFigura(indices,VAO,shader,uvista,modelo_vista,uproyeccion,modelo_proy
     glUniformMatrix4fv(uproyeccion,1,GL_FALSE,modelo_proyeccion.flatten())
     glUniformMatrix4fv(umodelo, 1, GL_FALSE, modelo_figura.flatten())
     glBindVertexArray(VAO)
-    glDrawElements(GL_LINES, len(indices), GL_UNSIGNED_INT, None)
+    glDrawElements(GL_LINE_STRIP, len(indices), GL_UNSIGNED_INT, None)
     glBindVertexArray(0)
 
 def main():
@@ -236,16 +217,20 @@ def main():
     glfw.make_context_current(ventana)
 
     #vertices, indices = generar_prismaHex( altura, radio)
-    vertices_e1, indices_e1 = elipsoide(0.2,10,10,0)
+    vertices_e1, indices_e1 = superficie(curva_logaritmica,0.2)
+    vertices_e2, indices_e2 = superficie(curva_potencial,0.2)
+
     programa_shader_1 = crear_programa_shader(Codigo_shaderFragmentos1)
+    programa_shader_2 = crear_programa_shader(Codigo_shaderFragmentos2)
 
     VAO_e1, VBO_e1, EBO_e1 = config_Buffers(vertices_e1,indices_e1)
+    VAO_e2, VBO_e2, EBO_e2 = config_Buffers(vertices_e2,indices_e2)
     
     uvista= glGetUniformLocation(programa_shader_1, "vista")
     uproyeccion= glGetUniformLocation(programa_shader_1, "proyeccion")
     umodelo= glGetUniformLocation(programa_shader_1, "transformacion")
 
-    view_base = matriz_vista([-0.15,0.2,2],[0,0,0],[0,1,0])
+    view_base = matriz_vista([-0.15,0.1,5.5],[0,0,0],[0,1,0])
     proyeccion_perspectiva = matriz_perspectiva(45, a/b, 1, 5)
     
     while not glfw.window_should_close(ventana):
@@ -253,6 +238,7 @@ def main():
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
         dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,view_base,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
+        dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,view_base,uproyeccion,proyeccion_perspectiva,umodelo,np.identity(4))
 
         glfw.swap_buffers(ventana)
         glfw.poll_events()
@@ -260,7 +246,13 @@ def main():
     glDeleteVertexArrays(1, [VAO_e1])
     glDeleteBuffers(1, [VBO_e1])
     glDeleteBuffers(1, [EBO_e1])
+
+    glDeleteVertexArrays(1, [VAO_e2])
+    glDeleteBuffers(1, [VBO_e2])
+    glDeleteBuffers(1, [EBO_e2])
+
     glDeleteProgram(programa_shader_1)
+    glDeleteProgram(programa_shader_2)
     
 glfw.terminate()
 
