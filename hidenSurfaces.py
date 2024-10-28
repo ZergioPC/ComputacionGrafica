@@ -12,13 +12,15 @@ import ctypes
 import glm
 from glm import value_ptr
 
+def openShaderFle(path):
+    shader = open(path,"r")
+    return shader.read()
+
+#Codigo_shaderVertices = openShaderFle("./fragment.frag")
+
 Codigo_shaderVertices = """
 #version 330 core
 layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 color_vertx;
-
-out vec3 randColor;
-
 uniform mat4 vista;
 uniform mat4 proyeccion;
 uniform mat4 transformacion;
@@ -26,8 +28,8 @@ uniform mat4 transformacion;
 void main()
 {
     gl_Position = vec4(position, 1.0)* vista* proyeccion * transformacion;
-    randColor = color_vertx;
 }
+
 """
 
 Codigo_shaderFragmentos1 = """
@@ -199,8 +201,6 @@ def dibujarFigura(indices,VAO,shader,uvista,modelo_vista,uproyeccion,modelo_proy
 
 def main():    
 
-    depthSurfaces = True
-
     if not glfw.init():
         return
 
@@ -239,19 +239,7 @@ def main():
             dibujarFigura(indices_e2,VAO_e2,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,value_ptr(rotacion))
             dibujarFigura(indices_orb,VAO_orb,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,value_ptr(rotacion))
 
-            if depthSurfaces:
-                glDisable(GL_CULL_FACE)
-                glEnable(GL_DEPTH_TEST)
-            else:
-                glDisable(GL_DEPTH_TEST)
-                glEnable(GL_CULL_FACE)
-
-            if glfw.get_key(ventana,glfw.KEY_A) == glfw.PRESS:
-                depthSurfaces = not depthSurfaces
-                if depthSurfaces:
-                    print("GL DEPTH TEST")
-                else:
-                    print("GL CULL_FACE")
+            glEnable(GL_DEPTH_TEST)
 
             glfw.swap_buffers(ventana)
             glfw.poll_events()
