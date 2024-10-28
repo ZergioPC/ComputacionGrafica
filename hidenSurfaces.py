@@ -2,22 +2,23 @@
 Hecho por: Sergio Danilo Palacios
 Codigo: 6000806
 
-Utilizar las teclas correspondientes a los números [1] [2] [3] y [4] para cambiar de visualización teniendo en cuenta:
-    1. Sin proyección ni vista.
-    2. Con proyección de perspectiva y vista UVN
-    3. Con proyección ortogonal y vista Look-At
-    4. Con proyección oblicua y vista Look-A
-
+Utilizar las tecla SPACE para cambiar entre DEPTH TEST y CULL FACE
 """
 
 import glfw 
 from OpenGL.GL import * 
 import numpy as np 
 import ctypes 
+import glm
+from glm import value_ptr
 
 Codigo_shaderVertices = """
 #version 330 core
 layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 color_vertx;
+
+out vec3 randColor;
+
 uniform mat4 vista;
 uniform mat4 proyeccion;
 uniform mat4 transformacion;
@@ -25,35 +26,19 @@ uniform mat4 transformacion;
 void main()
 {
     gl_Position = vec4(position, 1.0)* vista* proyeccion * transformacion;
+    randColor = color_vertx;
 }
 """
 
 Codigo_shaderFragmentos1 = """
 #version 330 core
-out vec4 color;
-void main()
-{
-    color = vec4(1.0, 0.5, 0.2, 1.0);
-    
-}
-"""
 
-Codigo_shaderFragmentos2 = """
-#version 330 core
+in vec3 randColor;
 out vec4 color;
-void main()
-{
-    color = vec4(0.0, 0.5, 0.0, 1.0);
-    
-}
-"""
 
-Codigo_shaderFragmentos3 = """
-#version 330 core
-out vec4 color;
 void main()
 {
-    color = vec4(1.0, 1.0, 1.0, 1.0);
+    color = vec4(randColor, 1.0);
     
 }
 """
@@ -84,18 +69,24 @@ def crear_programa_shader(frag_Code):
 
 def config_Buffers(vertices,indices):
     VAO = glGenVertexArrays(1)
-    VBO = glGenBuffers(1)
+    VBO = glGenBuffers(2)
     EBO = glGenBuffers(1)
 
     glBindVertexArray(VAO)
-    glBindBuffer(GL_ARRAY_BUFFER, VBO)
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[0])
     glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * vertices.itemsize, ctypes.c_void_p(0))
+    
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[1])
+    glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0,None)
 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * vertices.itemsize, ctypes.c_void_p(0))
     glEnableVertexAttribArray(0)
+    glEnableVertexAttribArray(1)
 
     glBindBuffer(GL_ARRAY_BUFFER, 0)
     
@@ -201,12 +192,15 @@ def dibujarFigura(indices,VAO,shader,uvista,modelo_vista,uproyeccion,modelo_proy
     glUseProgram(shader)
     glUniformMatrix4fv(uvista, 1, GL_FALSE, modelo_vista.flatten())        
     glUniformMatrix4fv(uproyeccion,1,GL_FALSE,modelo_proyeccion.flatten())
-    glUniformMatrix4fv(umodelo, 1, GL_FALSE, modelo_figura.flatten())
+    glUniformMatrix4fv(umodelo, 1, GL_FALSE, modelo_figura)
     glBindVertexArray(VAO)
-    glDrawElements(GL_LINES, len(indices), GL_UNSIGNED_INT, None)
+    glDrawElements(GL_TRIANGLE_STRIP, len(indices), GL_UNSIGNED_INT, None)
     glBindVertexArray(0)
 
 def main():    
+
+    depthSurfaces = True
+
     if not glfw.init():
         return
 
@@ -220,14 +214,12 @@ def main():
     glfw.make_context_current(ventana)
 
     #vertices, indices = generar_prismaHex( altura, radio)
-    vertices_e1, indices_e1 = elipsoide(0.2,10,10)
-    vertices_e2, indices_e2 = elipsoide(0.05,10,10,rot=[0,0,90])
-    vertices_orb, indices_orb = elipsoide(0.05,10,10,rot=[0,0,45],scale=1.3)
+    vertices_e1, indices_e1 = elipsoide(0.4,10,10, pos=[0,0,-1])
+    vertices_e2, indices_e2 = elipsoide(0.2,10,10,rot=[45,0,90], pos=[0,0,-0.5])
+    vertices_orb, indices_orb = elipsoide(0.05,10,10,rot=[90,0,45])
     
     try:
         programa_shader_1 = crear_programa_shader(Codigo_shaderFragmentos1)
-        programa_shader_2 = crear_programa_shader(Codigo_shaderFragmentos2)
-        programa_shader_3 = crear_programa_shader(Codigo_shaderFragmentos3)
 
         VAO_e1, VBO_e1, EBO_e1 = config_Buffers(vertices_e1,indices_e1)
         VAO_e2, VBO_e2, EBO_e2 = config_Buffers(vertices_e2,indices_e2)
@@ -241,9 +233,25 @@ def main():
             glClearColor(0.3 ,0.2 ,0.3 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             
-            dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
-            dibujarFigura(indices_e2,VAO_e2,programa_shader_2,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
-            dibujarFigura(indices_orb,VAO_orb,programa_shader_3,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,np.identity(4))
+            rotacion = glm.rotate(glm.mat4(1.0),glm.radians(glfw.get_time()*30),glm.vec3(0.0,1.0,0.0))
+
+            dibujarFigura(indices_e1,VAO_e1,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,value_ptr(rotacion))
+            dibujarFigura(indices_e2,VAO_e2,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,value_ptr(rotacion))
+            dibujarFigura(indices_orb,VAO_orb,programa_shader_1,uvista,np.identity(4),uproyeccion,np.identity(4),umodelo,value_ptr(rotacion))
+
+            if depthSurfaces:
+                glDisable(GL_CULL_FACE)
+                glEnable(GL_DEPTH_TEST)
+            else:
+                glDisable(GL_DEPTH_TEST)
+                glEnable(GL_CULL_FACE)
+
+            if glfw.get_key(ventana,glfw.KEY_A) == glfw.PRESS:
+                depthSurfaces = not depthSurfaces
+                if depthSurfaces:
+                    print("GL DEPTH TEST")
+                else:
+                    print("GL CULL_FACE")
 
             glfw.swap_buffers(ventana)
             glfw.poll_events()
@@ -256,15 +264,13 @@ def main():
         glDeleteVertexArrays(1, [VAO_e1])
         glDeleteVertexArrays(1, [VAO_e2])
         glDeleteVertexArrays(1, [VAO_orb])
-        glDeleteBuffers(1, [VBO_e1])
-        glDeleteBuffers(1, [VBO_e2])
-        glDeleteBuffers(1, [VBO_orb])
+        glDeleteBuffers(2, VBO_e1)
+        glDeleteBuffers(2, VBO_e2)
+        glDeleteBuffers(2, VBO_orb)
         glDeleteBuffers(1, [EBO_e1])
         glDeleteBuffers(1, [EBO_e2])
         glDeleteBuffers(1, [EBO_orb])
         glDeleteProgram(programa_shader_1)
-        glDeleteProgram(programa_shader_2)
-        glDeleteProgram(programa_shader_3)
         
     glfw.terminate()
 
