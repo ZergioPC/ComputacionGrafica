@@ -16,21 +16,7 @@ def openShaderFle(path):
     shader = open(path,"r")
     return shader.read()
 
-#Codigo_shaderVertices = openShaderFle("./fragment.frag")
-
-Codigo_shaderVertices = """
-#version 330 core
-layout(location = 0) in vec3 position;
-uniform mat4 vista;
-uniform mat4 proyeccion;
-uniform mat4 transformacion;
-
-void main()
-{
-    gl_Position = vec4(position, 1.0)* vista* proyeccion * transformacion;
-}
-
-"""
+Codigo_shaderVertices = openShaderFle("./fragment.frag")
 
 Codigo_shaderFragmentos1 = """
 #version 330 core
