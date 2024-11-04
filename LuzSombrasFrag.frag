@@ -18,18 +18,22 @@ uniform float mat_brillo;
 void main()
 {
     vec3 normal = normalize(normal_frag);
-    vec3 luz_dir = normalize(luz_position - posicion_frag);
+    vec3 direccion_luz = normalize(luz_position - posicion_frag);
 
-    vec3 comp_ambient = luz_ambient * mat_ambient;
+    // Componente ambiental
+    vec3 componente_ambiental = luz_ambient * mat_ambient;
 
-    float difuse_intencidad = max(dot(normal,luz_dir),0.0);
-    vec3 comp_difuse = luz_difuse * (difuse_intencidad * mat_difuse);
+    // Componente difusa
+    float intensidad_difusa = max(dot(normal, direccion_luz), 0.0);
+    vec3 componente_difusa = luz_difuse * (intensidad_difusa * mat_difuse);
 
-    vec3 dir_vista = normalize(-posicion_frag);
-    vec3 dir_reflex = reflect(-luz_dir,normal);
-    float specular_intencidad = pow(max(dot(dir_vista,dir_reflex),0.0),mat_brillo);
-    vec3 comp_specular = luz_specular * (specular_intencidad  + mat_specular)
+    // Componente especular
+    vec3 direccion_vista = normalize(-posicion_frag);
+    vec3 direccion_reflejo = reflect(-direccion_luz, normal);
+    float intensidad_especular = pow(max(dot(direccion_vista, direccion_reflejo), 0.0), mat_brillo);
+    vec3 componente_especular = luz_specular * (intensidad_especular * mat_specular);
 
-    vec3 color_final = comp_ambient + comp_difuse + comp_specular;
+    // Color final
+    vec3 color_final = componente_ambiental + componente_difusa + componente_especular;
     color = vec4(color_final, 1.0);
 }
