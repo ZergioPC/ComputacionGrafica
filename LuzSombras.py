@@ -41,18 +41,18 @@ def config_buffers(vertices,indices):
 
     op.glBindVertexArray(VAO)
 
-    op.glBufferData(op.GL_ARRAY_BUFFER,vertices.nbytes,vertices,op.GL_STATIC_DRAW)
     op.glBindBuffer(op.GL_ARRAY_BUFFER,VBO[0])
+    op.glBufferData(op.GL_ARRAY_BUFFER,vertices.nbytes,vertices,op.GL_STATIC_DRAW)
     op.glVertexAttribPointer(0,3,op.GL_FLOAT,op.GL_FALSE,3*vertices.itemsize,ctypes.c_void_p(0))
     op.glEnableVertexAttribArray(0)
 
-    op.glBufferData(op.GL_ARRAY_BUFFER,vertices.nbytes,vertices,op.GL_STATIC_DRAW)
     op.glBindBuffer(op.GL_ARRAY_BUFFER,VBO[1])
+    op.glBufferData(op.GL_ARRAY_BUFFER,vertices.nbytes,vertices,op.GL_STATIC_DRAW)
     op.glVertexAttribPointer(1,3,op.GL_FLOAT,op.GL_FALSE,3*vertices.itemsize,ctypes.c_void_p(0))
     op.glEnableVertexAttribArray(1)
 
-    op.glBufferData(op.GL_ELEMENT_ARRAY_BUFFER,indices.nbytes,indices,op.GL_STATIC_DRAW)  
     op.glBindBuffer(op.GL_ELEMENT_ARRAY_BUFFER,EBO)
+    op.glBufferData(op.GL_ELEMENT_ARRAY_BUFFER,indices.nbytes,indices,op.GL_STATIC_DRAW)  
     op.glBindBuffer(op.GL_ARRAY_BUFFER,0)
 
     op.glBindVertexArray(0)
@@ -169,7 +169,8 @@ def main():
             op.glClearColor(0.3 ,0.2 ,0.3 ,1.0 )
             op.glClear(op.GL_COLOR_BUFFER_BIT | op.GL_DEPTH_BUFFER_BIT)
 
-            tranform = 0
+            direction = glm.vec3(1.0,1.0,0.0)            
+            tranform = glm.rotate(glm.mat4(1.0),glm.radians(glfw.get_time()*10),direction)
 
             dibujarFigura(programa_shader,VAO,len(indices),projection,tranform,vista,luz_config,mat_config)
             
