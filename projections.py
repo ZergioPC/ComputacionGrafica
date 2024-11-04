@@ -123,7 +123,7 @@ def elipsoide(radio,nstack,nsectors):
             teta = j * dteta
             x = temp * np.sin(teta)
             z = temp * np.cos(teta)
-            vertices.append([x*1.4])
+            vertices.append([x])
             vertices.append([y])
             vertices.append([z])
             if i < nstack and j < nsectors:
