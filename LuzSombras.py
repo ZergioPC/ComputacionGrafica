@@ -1,3 +1,9 @@
+""" 
+Hecho por: Sergio Danilo Palacios
+Codigo: 6000806
+"""
+
+
 import glfw
 import glm
 import OpenGL.GL as op
@@ -58,8 +64,10 @@ def config_buffers(vertices,normales,indices):
 
     return VAO,VBO,EBO
 
-def dibujarFigura(programa,VAO,indices,projection,transform,vista,luz,material):
+def dibujarFigura(programa,VAO,indices,projection,rotacion,vista,luz,material,vel):
     op.glUseProgram(programa)
+    
+    transform = glm.rotate(glm.mat4(1.0),glm.radians(glfw.get_time()*vel),rotacion)
 
     op.glUniform3f(op.glGetUniformLocation(programa,"luz_position"),luz["pos"][0],luz["pos"][1],luz["pos"][2])   #Luz Posicion
     op.glUniform3f(op.glGetUniformLocation(programa,"luz_ambient"),luz["amb"][0],luz["amb"][1],luz["amb"][2])    #Luz Ambiente
@@ -80,7 +88,6 @@ def dibujarFigura(programa,VAO,indices,projection,transform,vista,luz,material):
     op.glBindVertexArray(0)
 
 #FIGURAS
-
 
 def aux_multiplyMatrixes(A, B):
     # Verificar si las matrices pueden multiplicarse (el número de columnas de A debe ser igual al número de filas de B)
@@ -184,13 +191,11 @@ def esfera(radius,stacks,sectors,pos=[0,0,0],rot=[0,0,0],scale=1.0):
 #MAIN
 
 def main():
-    #vertex_shader = getShaderCode("phongVertex.frag")
-    vertex_shader = getShaderCode("gouraudVertex.frag")
-    #vertex_shader = getShaderCode("LuzSombrasVertex.frag")
+    vertex_shader_phong = getShaderCode("phongVertex.frag")
+    vertex_shader_gouraud = getShaderCode("gouraudVertex.frag")
 
-    #fragment_shader = getShaderCode("phongFragment.frag")
-    fragment_shader = getShaderCode("gouraudFragment.frag")
-    #fragment_shader = getShaderCode("LuzSombrasFrag.frag")
+    fragment_shader_phong = getShaderCode("phongFragment.frag")
+    fragment_shader_gouraud = getShaderCode("gouraudFragment.frag")
 
     ancho,alto = 800,600
     
@@ -215,38 +220,74 @@ def main():
     centro = glm.vec3(0.0,0.0,0.0)
     arriba = glm.vec3(0.0,1.0,0.0)
 
-    vertices,normales,indices = esfera(0.5,10,10)
+    vertices_1,normales_1,indices_1 = esfera(0.5,10,10,pos=[0.5,0.5,0.5])
+    vertices_2,normales_2,indices_2 = esfera(0.5,10,10,pos=[-0.3,-0.5,0.1],scale=0.5)
+    vertices_3,normales_3,indices_3 = esfera(0.5,10,10,pos=[-0.5,0.5,0.5])
 
-    luz_config = {
-        "pos":[5.0 , 5.0 , 5.0],
-        "amb":[0.6 , 0.2 , 0.6],
-        "dif":[0.8 , 0.8 , 0.8],
+    luz_config_1 = {
+        "pos":[9.0 , 9.0 , 9.0],
+        "amb":[0.5 , 0.1 , 0.2],
+        "dif":[0.1 , 0.1 , 0.1],
         "spc":[1.0 , 1.0 , 1.0]
     }
 
-    mat_config = {
-        "shine":32.0,
-        "ambnt":[0.5 , 0.3 , 0.2],
-        "diff":[0.5 , 0.3 , 0.6],
+    luz_config_2 = {
+        "pos":[1.0 , 0.0 , -1.0],
+        "amb":[0.5 , 0.1 , 0.2],
+        "dif":[0.1 , 0.1 , 0.1],
+        "spc":[1.0 , 1.0 , 1.0]
+    }
+
+    luz_config_3 = {
+        "pos":[9.0 , 9.0 , 9.0],
+        "amb":[1.0 , 0.1 , 0.2],
+        "dif":[1.0 , 1.0 , 0.1],
+        "spc":[1.0 , 1.0 , 1.0]
+    }
+
+    mat_config_1 = {
+        "shine":12.0,
+        "ambnt":[1.0 , 0.3 , 0.2],  #Color
+        "diff":[0.5 , 0.3 , 0.2],
+        "spec":[1.0 , 1.0 , 1.0]
+    }
+
+    mat_config_2 = {
+        "shine":8.0,
+        "ambnt":[0.1 , 1.0 , 0.1],  #Color
+        "diff":[0.5 , 0.3 , 0.2],
+        "spec":[1.0 , 1.0 , 1.0]
+    }
+
+    mat_config_3 = {
+        "shine":82.0,
+        "ambnt":[0.1 , 0.3 , 1.0],  #Color
+        "diff":[0.5 , 0.3 , 0.2],
         "spec":[1.0 , 1.0 , 1.0]
     }
 
     try:
-        programa_shader = crear_programa_shader(fragment_shader,vertex_shader)
+        programa_shader_phong = crear_programa_shader(fragment_shader_phong,vertex_shader_phong)
+        programa_shader_gouraud = crear_programa_shader(fragment_shader_gouraud,vertex_shader_gouraud)
 
-        VAO,VBO,EBO = config_buffers(vertices,normales,indices)
+        VAO_1,VBO_1,EBO_1 = config_buffers(vertices_1,normales_1,indices_1)
+        VAO_2,VBO_2,EBO_2 = config_buffers(vertices_2,normales_2,indices_2)
+        VAO_3,VBO_3,EBO_3 = config_buffers(vertices_3,normales_3,indices_3)
 
         projection = glm.perspective(glm.radians(fov),aspect_ratio,cerca,lejos)
         vista = glm.lookAt(ojo,centro,arriba)
 
+        direction_1 = glm.vec3(1.0,1.0,0.0)
+        direction_2 = glm.vec3(0.0,1.0,0.4)
+        direction_3 = glm.vec3(0.0,-1.0,0.0)
+
         while not glfw.window_should_close(ventana):
-            op.glClearColor(0.3 ,0.2 ,0.3 ,1.0 )
+            op.glClearColor(0.8 ,0.9 ,0.7 ,1.0 )
             op.glClear(op.GL_COLOR_BUFFER_BIT | op.GL_DEPTH_BUFFER_BIT)
 
-            direction = glm.vec3(1.0,1.0,0.0)            
-            tranform = glm.rotate(glm.mat4(1.0),glm.radians(glfw.get_time()*10),direction)
-
-            dibujarFigura(programa_shader,VAO,len(indices),projection,tranform,vista,luz_config,mat_config)
+            dibujarFigura(programa_shader_phong,VAO_1,len(indices_1),projection,direction_1,vista,luz_config_1,mat_config_1,20)
+            dibujarFigura(programa_shader_gouraud,VAO_2,len(indices_2),projection,direction_2,vista,luz_config_2,mat_config_2,150)
+            dibujarFigura(programa_shader_gouraud,VAO_3,len(indices_3),projection,direction_3,vista,luz_config_3,mat_config_3,100)
             
             glfw.swap_buffers(ventana)
             glfw.poll_events()
@@ -255,11 +296,18 @@ def main():
         print(f"Error: \n {e}")
 
     finally:
-        op.glDeleteVertexArrays(1,[VAO])
-        op.glDeleteBuffers(2,VBO)
-        op.glDeleteBuffers(1,[EBO])
+        op.glDeleteVertexArrays(1,[VAO_1])
+        op.glDeleteVertexArrays(1,[VAO_2])
+        op.glDeleteVertexArrays(1,[VAO_3])
+        op.glDeleteBuffers(2,VBO_1)
+        op.glDeleteBuffers(2,VBO_2)
+        op.glDeleteBuffers(2,VBO_3)
+        op.glDeleteBuffers(1,[EBO_1])
+        op.glDeleteBuffers(1,[EBO_2])
+        op.glDeleteBuffers(1,[EBO_3])
 
-        op.glDeleteProgram(programa_shader)
+        op.glDeleteProgram(programa_shader_gouraud)
+        op.glDeleteProgram(programa_shader_phong)
 
     glfw.terminate()
 
