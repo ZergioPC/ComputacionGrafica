@@ -7,7 +7,7 @@ out vec3 normal_frag;
 
 uniform mat4 proyeccion;
 uniform mat4 vista;
-uniform mat4 transformacion;
+uniform mat4 transformacion; 
 
 void main()
 {

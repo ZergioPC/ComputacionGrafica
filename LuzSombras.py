@@ -81,28 +81,100 @@ def dibujarFigura(programa,VAO,indices,projection,transform,vista,luz,material):
 
 #FIGURAS
 
-def esfera(radio,stacks,sectors):
+
+def aux_multiplyMatrixes(A, B):
+    # Verificar si las matrices pueden multiplicarse (el número de columnas de A debe ser igual al número de filas de B)
+    if len(A[0]) != len(B):
+        raise ValueError("El número de columnas de A debe ser igual al número de filas de B")
+
+    # Inicializar la matriz resultante con ceros, de tamaño m x p
+    result = [[0 for _ in range(len(B[0]))] for _ in range(len(A))]
+
+    # Realizar la multiplicación de matrices
+    for i in range(len(A)):  # Iterar sobre las filas de A
+        for j in range(len(B[0])):  # Iterar sobre las columnas de B
+            for k in range(len(B)):  # Iterar sobre las filas de B
+                result[i][j] += A[i][k] * B[k][j]
+
+    return result
+
+def aux_rotacion(x,y,z,vertices):
+    matX = [[1, 0, 0],[0, np.cos(x), -np.sin(x)],[0, np.sin(x), np.cos(x)]]
+    matY = [[np.cos(y), 0, np.sin(y)],[0, 1, 0],[-np.sin(y), 0, np.cos(y)]]
+    matZ = [[np.cos(z), -np.sin(z), 0],[np.sin(z), np.cos(z), 0],[0, 0, 1]]
+    
+    matRot = aux_multiplyMatrixes(aux_multiplyMatrixes(matZ,matY),matX)
+
+    newVertices = []
+
+    for punto in vertices:
+        newPunto = [0,0,0]
+        for i in range(3):
+            for j in range(3):
+                newPunto[i] += matRot[i][j] * punto[j]
+        newVertices.append(newPunto)
+
+    return newVertices
+
+def aux_traslacion(vertices,delta):
+    new_vertices = []
+
+    for punto in vertices:
+        x = punto[0] + delta [0]
+        y = punto[1] + delta [1]
+        z = punto[2] + delta [2]
+        new_vertices.append([x,y,z])
+    
+    return new_vertices
+
+def aux_escalado(vertices,scale):
+    new_vertices = []
+
+    for punto in vertices:
+        x = punto[0] * scale
+        y = punto[1] * scale
+        z = punto[2] * scale
+        new_vertices.append([x,y,z])
+    
+    return new_vertices
+
+def esfera(radius,stacks,sectors,pos=[0,0,0],rot=[0,0,0],scale=1.0):
     vertices = []
-    normales = []
+    normals = []
     indices = []
 
-    t = (1.0 + np.sqrt(5.0))/2.0
-    prop = radio/np.sqrt(t**2 + 1)
-    t *= prop
+    for i in range(stacks + 1):
+        stack_angle = np.pi / 2 - i * np.pi / stacks  # De +pi/2 a -pi/2
+        xy = radius * np.cos(stack_angle)  # Radio en el plano x-y
+        z = radius * np.sin(stack_angle)   # Coordenada z
 
-    vertices = [
-        [-prop, t, 0], [prop, t, 0], [-prop, -t, 0], [prop, -t, 0],
-        [0, -prop, t], [0,prop,t], [0,-prop,-t], [0,prop,t],
-        [t,0,-prop], [t,0,prop], [-t,0,-prop], [-t,0,prop]
-    ]
+        for j in range(sectors + 1):
+            sector_angle = j * 2 * np.pi / sectors  # De 0 a 2pi
 
-    indices = [
-        0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0,
-        10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10,
-        7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6,
-        3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2,
-        10, 8, 6, 7, 9, 8, 1
-    ]
+            # Coordenadas de los vértices (x, y, z)
+            x = xy * np.cos(sector_angle)
+            y = xy * np.sin(sector_angle)
+            vertices.append([x, y, z])
+
+            # Normales (normalizadas)
+            nx = x / radius
+            ny = y / radius
+            nz = z / radius
+            normals.extend([nx, ny, nz])
+
+    # Crear índices de los triángulos
+    for i in range(stacks):
+        for j in range(sectors):
+            first = i * (sectors + 1) + j
+            second = first + sectors + 1
+
+            # Triángulo 1
+            indices.extend([first, second, first + 1])
+
+            # Triángulo 2
+            indices.extend([second, second + 1, first + 1])
+
+    vertices = aux_traslacion(aux_rotacion(np.deg2rad(rot[0]),np.deg2rad(rot[1]),np.deg2rad(rot[2]),aux_escalado(vertices,scale)),pos)
 
     vertices = np.array(vertices, dtype=np.float32).flatten()
     normales = np.array(vertices, dtype=np.uint32)
@@ -112,8 +184,13 @@ def esfera(radio,stacks,sectors):
 #MAIN
 
 def main():
-    vertex_shader = getShaderCode("LuzSombrasVertex.frag")
-    fragment_shader = getShaderCode("LuzSombrasFrag.frag")
+    #vertex_shader = getShaderCode("phongVertex.frag")
+    vertex_shader = getShaderCode("gouraudVertex.frag")
+    #vertex_shader = getShaderCode("LuzSombrasVertex.frag")
+
+    #fragment_shader = getShaderCode("phongFragment.frag")
+    fragment_shader = getShaderCode("gouraudFragment.frag")
+    #fragment_shader = getShaderCode("LuzSombrasFrag.frag")
 
     ancho,alto = 800,600
     
