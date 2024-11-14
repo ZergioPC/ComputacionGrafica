@@ -128,6 +128,43 @@ void main()
 }
 """
 
+class figura:
+    def __init__(self,VAO,vertices,indices,shaders,luz,material,origen):
+        #OpenGL
+        self.VAO = VAO
+        self.vertices = vertices
+        self.indices = indices
+        self.programa = shaders["program"]
+        self.transform = shaders["transform"]
+        self.proyeccion = shaders["projection"]
+        self.vista = shaders["vista"]
+        self.luz = luz
+        self.material = material
+        #Posicion inicial
+        self.startPos = origen["pos"]
+        self.startScale = origen["scale"]
+        self.startRot = origen["rot"]
+
+    def dibujar(self):
+        glUseProgram(self.programa)
+        glUniform3f(glGetUniformLocation(self.programa,"luz_position"),self.luz["pos"][0],self.luz["pos"][1],self.luz["pos"][2]) 
+        glUniform3f(glGetUniformLocation(self.programa,"luz_ambient"),self.luz["amb"][0],self.luz["amb"][1],self.luz["amb"][2])  
+        glUniform3f(glGetUniformLocation(self.programa,"luz_difuse"),self.luz["dif"][0],self.luz["dif"][1],self.luz["dif"][2])   
+        glUniform3f(glGetUniformLocation(self.programa,"luz_specular"),self.luz["spc"][0],self.luz["spc"][1],self.luz["spc"][2]) 
+
+        glUniform3f(glGetUniformLocation(self.programa,"mat_ambient"),self.material["amb"][0],self.material["amb"][0],self.material["amb"][0]) 
+        glUniform3f(glGetUniformLocation(self.programa,"mat_difuse"),self.material["dif"][0],self.material["dif"][0],self.material["dif"][0])     
+        glUniform3f(glGetUniformLocation(self.programa,"mat_specular"),self.material["spc"][0],self.material["spc"][0],self.material["spc"][0])   
+        glUniform1f(glGetUniformLocation(self.programa,"mat_brillo"),self.material["brillo"])           
+
+        glUniformMatrix4fv(glGetUniformLocation(self.programa,"transformacion"),1,GL_FALSE,glm.value_ptr(self.transform))
+        glUniformMatrix4fv(glGetUniformLocation(self.programa,"proyeccion"),1,GL_FALSE,glm.value_ptr(self.proyeccion))
+        glUniformMatrix4fv(glGetUniformLocation(self.programa,"vista"),1,GL_FALSE,glm.value_ptr(self.vista))
+
+        glBindVertexArray(self.VAO)
+        glDrawElements(GL_TRIANGLES, self.indices, GL_UNSIGNED_INT, None)
+        glBindVertexArray(0)
+
 def compilar_shader(codigo, tipo_shader):
     shader = glCreateShader(tipo_shader) 
     glShaderSource(shader, codigo) 
@@ -314,6 +351,31 @@ def main():
         vista = glm.lookAt(ojo,centro,arriba)
         transform = glm.rotate(glm.mat4(1.0),0.0,glm.vec3(1.0,1.0,0.0))
 
+        cuboShaders = {
+            "program":phong_programa,
+            "transform":transform,
+            "projection":projection,
+            "vista":vista
+        }
+        cuboLuz = {
+            "pos":[0.0 , 0.5 , 0.0],
+            "amb":[0.5 , 0.1 , 0.2],
+            "dif":[0.1 , 0.1 , 0.1],
+            "spc":[1.0 , 1.0 , 1.0]
+        }
+        cuboMaterial = {
+            "amb":[0.6 , 0.1 , 0.1],
+            "dif":[1.0 , 1.0 , 1.0], 
+            "spc":[1.0 , 1.0 , 1.0],
+            "brillo":30.0
+        }
+        cuboOrigen = {
+            "pos":[0.0 , 0.0 , 0.0],
+            "scale":1,
+            "rot":[0.0 , 0.0 , 0.0]
+        }
+        cubo = figura(VAO_1,vertices_1,len(indices_1),cuboShaders,cuboLuz,cuboMaterial,cuboOrigen)
+
         while not glfw.window_should_close(ventana):
             glClearColor(0.1 ,0.1 ,0.1 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -323,10 +385,11 @@ def main():
             z =(np.sin(time)*3)-1.5
             luz = [x,1.0,z]
 
-            dibujarFigura(phong_programa,VAO_1,len(indices_1),projection,transform,vista,luz,[0.2,0.5,0.2],30.0)
-            dibujarFigura(phong_programa,VAO_2,len(indices_2),projection,transform,vista,luz,[1.0,1.0,1.0],60.0)
-            dibujarFigura(gouraund_programa,VAO_3,len(indices_3),projection,transform,vista,luz,[0.5,0.2,0.6],20.0)
-            
+            #dibujarFigura(phong_programa,VAO_1,len(indices_1),projection,transform,vista,luz,[0.2,0.5,0.2],30.0)
+            #dibujarFigura(phong_programa,VAO_2,len(indices_2),projection,transform,vista,luz,[1.0,1.0,1.0],60.0)
+            #dibujarFigura(gouraund_programa,VAO_3,len(indices_3),projection,transform,vista,luz,[0.5,0.2,0.6],20.0)
+            cubo.dibujar()
+
             glfw.swap_buffers(ventana)
             glfw.poll_events()
 
