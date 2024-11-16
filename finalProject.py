@@ -135,7 +135,6 @@ class figura:
         self.vertices = vertices
         self.indices = indices
         self.programa = shaders["program"]
-        self.transform = shaders["transform"]
         self.proyeccion = shaders["projection"]
         self.vista = shaders["vista"]
         self.luz = luz
@@ -145,8 +144,9 @@ class figura:
         self.startScale = origen["scale"]
         self.startRot = origen["rot"]
 
-    def dibujar(self):
+    def dibujar(self,transform):
         glUseProgram(self.programa)
+
         glUniform3f(glGetUniformLocation(self.programa,"luz_position"),self.luz["pos"][0],self.luz["pos"][1],self.luz["pos"][2]) 
         glUniform3f(glGetUniformLocation(self.programa,"luz_ambient"),self.luz["amb"][0],self.luz["amb"][1],self.luz["amb"][2])  
         glUniform3f(glGetUniformLocation(self.programa,"luz_difuse"),self.luz["dif"][0],self.luz["dif"][1],self.luz["dif"][2])   
@@ -157,7 +157,7 @@ class figura:
         glUniform3f(glGetUniformLocation(self.programa,"mat_specular"),self.material["spc"][0],self.material["spc"][0],self.material["spc"][0])   
         glUniform1f(glGetUniformLocation(self.programa,"mat_brillo"),self.material["brillo"])           
 
-        glUniformMatrix4fv(glGetUniformLocation(self.programa,"transformacion"),1,GL_FALSE,glm.value_ptr(self.transform))
+        glUniformMatrix4fv(glGetUniformLocation(self.programa,"transformacion"),1,GL_FALSE,glm.value_ptr(transform))
         glUniformMatrix4fv(glGetUniformLocation(self.programa,"proyeccion"),1,GL_FALSE,glm.value_ptr(self.proyeccion))
         glUniformMatrix4fv(glGetUniformLocation(self.programa,"vista"),1,GL_FALSE,glm.value_ptr(self.vista))
 
@@ -316,7 +316,7 @@ def main():
     if not glfw.init():
         return
     
-    ventana = glfw.create_window(ancho,alto,"Iluminacion - Sergio Palacios", None, None)
+    ventana = glfw.create_window(ancho,alto,"Proyecto Final - Corte 3", None, None)
 
     if not ventana:
         glfw.terminate()
@@ -334,7 +334,7 @@ def main():
     centro = glm.vec3(0.0,0.0,0.0)
     arriba = glm.vec3(0.0,1.0,0.0)
 
-    vertices_1, normales_1, indices_1 = generate_cube([0.4, 0.0, -0.5], 0.7)
+    vertices_1, normales_1, indices_1 = generate_cube([0.4, -0.5, -0.5], 0.4)
     vertices_2, normales_2, indices_2 = generate_cube([-0.4, 0.0, 0.0], 0.6)
     vertices_3, normales_3, indices_3 = generate_cube([0.0, 0.0, 0.5], 0.5)
 
@@ -349,11 +349,9 @@ def main():
 
         projection = glm.perspective(glm.radians(fov),aspect_ratio,cerca,lejos)
         vista = glm.lookAt(ojo,centro,arriba)
-        transform = glm.rotate(glm.mat4(1.0),0.0,glm.vec3(1.0,1.0,0.0))
 
         cuboShaders = {
             "program":phong_programa,
-            "transform":transform,
             "projection":projection,
             "vista":vista
         }
@@ -379,16 +377,23 @@ def main():
         while not glfw.window_should_close(ventana):
             glClearColor(0.1 ,0.1 ,0.1 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
+            time = np.abs(np.sin((glfw.get_time()*6)))
+            z = 1-(2*time-1)**4
             
-            time = glfw.get_time()*0.5
-            x =(np.cos(time)*3)-1.5
-            z =(np.sin(time)*3)-1.5
-            luz = [x,1.0,z]
+            #Prueba Rotacion fuera del eje
+            deltaPos = glm.vec3(0.4, -0.5, -0.5)
+            t_Origen = glm.translate(glm.mat4(1.0),-deltaPos)
+            t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*4 ,glm.vec3(0.0 , 1.0 , 1.0))
+            t_Delta = glm.translate(glm.mat4(1.0),deltaPos)
+            t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,time*0.7,0.0))
+            
+            transform = t_posV*t_Delta*t_rotar*t_Origen
 
             #dibujarFigura(phong_programa,VAO_1,len(indices_1),projection,transform,vista,luz,[0.2,0.5,0.2],30.0)
             #dibujarFigura(phong_programa,VAO_2,len(indices_2),projection,transform,vista,luz,[1.0,1.0,1.0],60.0)
             #dibujarFigura(gouraund_programa,VAO_3,len(indices_3),projection,transform,vista,luz,[0.5,0.2,0.6],20.0)
-            cubo.dibujar()
+            cubo.dibujar(transform)
 
             glfw.swap_buffers(ventana)
             glfw.poll_events()
