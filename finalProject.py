@@ -2,6 +2,7 @@ import glfw
 import glm
 from OpenGL.GL import *
 import numpy as np
+import random as rng
 
 phong_vertexCode = """
 #version 330 core
@@ -140,9 +141,9 @@ class figura:
         self.luz = luz
         self.material = material
         #Posicion inicial
-        self.startPos = origen["pos"]
-        self.startScale = origen["scale"]
-        self.startRot = origen["rot"]
+        self.startPos = origen[0]
+        self.startScale = origen[2]
+        self.startRot = origen[1]
 
     def dibujar(self,transform):
         glUseProgram(self.programa)
@@ -308,6 +309,18 @@ def generate_cube(position,scale):
 
     return vertices,normals,indices
 
+def trayectoria(origen,destino,delta,time):
+    x = destino[0]*delta - origen[0]
+    y = destino[1]*delta - origen[1]
+    z = destino[2]*delta - origen[2]
+
+    if(delta < time):
+        end = True
+    else:
+        end = False
+
+    return glm.vec3(x,y,z),end,delta
+
 #MAIN
 
 def main():
@@ -334,10 +347,18 @@ def main():
     centro = glm.vec3(0.0,0.0,0.0)
     arriba = glm.vec3(0.0,1.0,0.0)
 
-    vertices_1, normales_1, indices_1 = generate_cube([0.4, -0.5, -0.5], 0.4)
+    vertices_1, normales_1, indices_1 = generate_cube([0.0, 0.0, 0.0], 1.0)
     vertices_2, normales_2, indices_2 = generate_cube([-0.4, 0.0, 0.0], 0.6)
     vertices_3, normales_3, indices_3 = generate_cube([0.0, 0.0, 0.5], 0.5)
 
+    playersPos = [
+        [ 0.3 , 0.0 , 0.3],
+        [-0.3 , 0.0 ,-0.3],
+        [-0.3 , 0.0 , 0.3],
+        [ 0.3 , 0.0 ,-0.3],
+    ]
+
+    playerReceptor = []
 
     try:
         phong_programa = crear_programa_shader(phong_fragmentCode,phong_vertexCode)
@@ -367,33 +388,57 @@ def main():
             "spc":[1.0 , 1.0 , 1.0],
             "brillo":30.0
         }
-        cuboOrigen = {
-            "pos":[0.0 , 0.0 , 0.0],
-            "scale":1,
-            "rot":[0.0 , 0.0 , 0.0]
-        }
+        cuboOrigen = [
+            [ 0.0 , 0.0 , 0.0],
+            [ 0.0 , 0.0 , 0.0],
+            1.0
+        ]
         cubo = figura(VAO_1,vertices_1,len(indices_1),cuboShaders,cuboLuz,cuboMaterial,cuboOrigen)
 
+        pelotaPos = glm.vec3(0.0, 0.0, 0.0)
+        playerReceptor = playersPos[0]
+        oldTime = 0.0        
         while not glfw.window_should_close(ventana):
             glClearColor(0.1 ,0.1 ,0.1 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
+            numPlayer = 0
+
             time = np.abs(np.sin((glfw.get_time()*6)))
-            z = 1-(2*time-1)**4
+            time3 = (glfw.get_time() * 0.5) % 1
             
-            #Prueba Rotacion fuera del eje
-            deltaPos = glm.vec3(0.4, -0.5, -0.5)
-            t_Origen = glm.translate(glm.mat4(1.0),-deltaPos)
+            #Animacion de la Pelota
+
+            direccion,changePlayer,oldTime = trayectoria(pelotaPos,playerReceptor,time3,oldTime)
+
+
+            t_Origen = glm.translate(glm.mat4(1.0),-pelotaPos)
             t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*4 ,glm.vec3(0.0 , 1.0 , 1.0))
-            t_Delta = glm.translate(glm.mat4(1.0),deltaPos)
-            t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,time*0.7,0.0))
-            
-            transform = t_posV*t_Delta*t_rotar*t_Origen
+            t_Delta = glm.translate(glm.mat4(1.0),pelotaPos)
+            t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,time*0.0,0.0))
+            t_posX = glm.translate(glm.mat4(1.0),direccion)
+
+            #transform = t_posX*t_posV*t_Delta*t_rotar*t_Origen
+            transform = t_posX
 
             #dibujarFigura(phong_programa,VAO_1,len(indices_1),projection,transform,vista,luz,[0.2,0.5,0.2],30.0)
             #dibujarFigura(phong_programa,VAO_2,len(indices_2),projection,transform,vista,luz,[1.0,1.0,1.0],60.0)
             #dibujarFigura(gouraund_programa,VAO_3,len(indices_3),projection,transform,vista,luz,[0.5,0.2,0.6],20.0)
             cubo.dibujar(transform)
+
+            if changePlayer:
+                pelotaPos = glm.vec3(
+                    playerReceptor[0],
+                    playerReceptor[1],
+                    playerReceptor[2]
+                )
+                newPlayer = rng.randint(0,len(playersPos)-1)
+                while numPlayer == newPlayer:
+                    newPlayer = rng.randint(0,len(playersPos)-1)
+                numPlayer = newPlayer
+                playerReceptor = playersPos[numPlayer]
+            
+            print(f"{direccion} - {pelotaPos} - {changePlayer}")
 
             glfw.swap_buffers(ventana)
             glfw.poll_events()
