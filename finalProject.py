@@ -310,20 +310,17 @@ def generate_cube(position,scale):
 
     return vertices,normals,indices
 
-def trayectoria(origen,end,delta):
-    aux = glm.translate(glm.mat4(1.0),origen)
-    position = glm.translate(aux,glm.vec3(end[0]*delta,end[1]*delta,end[2]*delta))
-
+def trayectoria(inicio,fin,delta):
+    position = [inicio[0]*(1-delta)+fin[0]*delta,inicio[1]*(1-delta)+fin[1]*delta,inicio[2]*(1-delta)+fin[2]*delta]
     return position
 
 def convert2vec3(array):
     return glm.vec3(array[0],array[1],array[2])
 
 def randomNumber(last,maximo):
-    while True:
+    aux = rng.randint(0,maximo)
+    while aux==last:
         aux = rng.randint(0,maximo)
-        if(aux != last):
-            break
     return aux
 
 #MAIN
@@ -398,33 +395,24 @@ def main():
             [ 0.0 , 0.0 , 0.0],
             1.0
         ]
+
+        numPlayer = 1
+
         cubo = figura(VAO_1,vertices_1,len(indices_1),cuboShaders,cuboLuz,cuboMaterial,cuboOrigen)
 
-        pelotaPos = glm.vec3(0.0, 0.0, 0.0)
-        playerReceptor = playersPos[0]
+        pelotaPos = playersPos[0]
+        playerReceptor = playersPos[numPlayer]
         
         timeLocal = 0.0
-        deltaTime = 0.005
+        deltaTime = 0.05
         
         while not glfw.window_should_close(ventana):
             glClearColor(0.1 ,0.1 ,0.1 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-            numPlayer = 0
-
-            #time = np.abs(np.sin((glfw.get_time()*6)))
-                          
-            if timeLocal >= 1.0:
-                timeLocal = 0.0
-                pelotaPos = convert2vec3(playerReceptor)
-                numPlayer = randomNumber(numPlayer,len(playersPos)-1)
-                playerReceptor = playersPos[numPlayer]
-            else:
-                timeLocal += deltaTime
-                
+            #time = np.abs(np.sin((glfw.get_time()*6)))                
                         
             #Animacion de la Pelota
-
             direccion = trayectoria(pelotaPos,playerReceptor,timeLocal)
 
 
@@ -433,7 +421,7 @@ def main():
             #t_Delta = glm.translate(glm.mat4(1.0),pelotaPos)
             #t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,time*0.0,0.0))
 
-            t_posX = direccion
+            t_posX = glm.translate(glm.mat4(1.0),convert2vec3(direccion))
 
             #transform = t_posX*t_posV*t_Delta*t_rotar*t_Origen
             transform = t_posX
@@ -442,6 +430,14 @@ def main():
             #dibujarFigura(phong_programa,VAO_2,len(indices_2),projection,transform,vista,luz,[1.0,1.0,1.0],60.0)
             #dibujarFigura(gouraund_programa,VAO_3,len(indices_3),projection,transform,vista,luz,[0.5,0.2,0.6],20.0)
             cubo.dibujar(transform)
+
+            timeLocal += deltaTime
+                    
+            if timeLocal >= 1.0:
+                timeLocal = 0.0
+                pelotaPos = playerReceptor
+                numPlayer = randomNumber(numPlayer,len(playersPos)-1)
+                playerReceptor = playersPos[numPlayer]
 
             glfw.swap_buffers(ventana)
             glfw.poll_events()
