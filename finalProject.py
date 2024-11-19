@@ -349,7 +349,7 @@ def main():
     centro = glm.vec3(0.0,0.0,0.0)
     arriba = glm.vec3(0.0,1.0,0.0)
 
-    vertices_1, normales_1, indices_1 = generate_cube([0.0, 0.0, 0.0], 1.0)
+    vertices_1, normales_1, indices_1 = generate_cube([0.0, 0.0, 0.0], 0.4)
     vertices_2, normales_2, indices_2 = generate_cube([-0.4, 0.0, 0.0], 0.6)
     vertices_3, normales_3, indices_3 = generate_cube([0.0, 0.0, 0.5], 0.5)
 
@@ -404,27 +404,23 @@ def main():
         playerReceptor = playersPos[numPlayer]
         
         timeLocal = 0.0
-        deltaTime = 0.05
+        deltaTime = 0.01
         
         while not glfw.window_should_close(ventana):
-            glClearColor(0.1 ,0.1 ,0.1 ,1.0 )
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
-            #time = np.abs(np.sin((glfw.get_time()*6)))                
+            glClearColor(0.7 ,0.7 ,0.7 ,1.0 )
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)               
                         
             #Animacion de la Pelota
             direccion = trayectoria(pelotaPos,playerReceptor,timeLocal)
+            timeVertical = -(2*timeLocal-1)**4+1 
 
-
-            #t_Origen = glm.translate(glm.mat4(1.0),-pelotaPos)
-            #t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*4 ,glm.vec3(0.0 , 1.0 , 1.0))
-            #t_Delta = glm.translate(glm.mat4(1.0),pelotaPos)
-            #t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,time*0.0,0.0))
-
+            t_Origen = glm.translate(glm.mat4(1.0),-convert2vec3(direccion))
+            t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*3 ,glm.vec3(0.4 , 1.0 , 0.0))
+            t_Delta = glm.translate(glm.mat4(1.0),convert2vec3(direccion))
+            t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,timeVertical*1.0,0.0))
             t_posX = glm.translate(glm.mat4(1.0),convert2vec3(direccion))
 
-            #transform = t_posX*t_posV*t_Delta*t_rotar*t_Origen
-            transform = t_posX
+            transform = t_posX*t_posV*t_Delta*t_rotar*t_Origen
 
             #dibujarFigura(phong_programa,VAO_1,len(indices_1),projection,transform,vista,luz,[0.2,0.5,0.2],30.0)
             #dibujarFigura(phong_programa,VAO_2,len(indices_2),projection,transform,vista,luz,[1.0,1.0,1.0],60.0)
