@@ -1,4 +1,5 @@
 import glfw
+import traceback
 import glm
 from OpenGL.GL import *
 import numpy as np
@@ -309,17 +310,21 @@ def generate_cube(position,scale):
 
     return vertices,normals,indices
 
-def trayectoria(origen,destino,delta,time):
-    x = destino[0]*delta - origen[0]
-    y = destino[1]*delta - origen[1]
-    z = destino[2]*delta - origen[2]
+def trayectoria(origen,end,delta):
+    aux = glm.translate(glm.mat4(1.0),origen)
+    position = glm.translate(aux,glm.vec3(end[0]*delta,end[1]*delta,end[2]*delta))
 
-    if(delta < time):
-        end = True
-    else:
-        end = False
+    return position
 
-    return glm.vec3(x,y,z),end,delta
+def convert2vec3(array):
+    return glm.vec3(array[0],array[1],array[2])
+
+def randomNumber(last,maximo):
+    while True:
+        aux = rng.randint(0,maximo)
+        if(aux != last):
+            break
+    return aux
 
 #MAIN
 
@@ -397,26 +402,38 @@ def main():
 
         pelotaPos = glm.vec3(0.0, 0.0, 0.0)
         playerReceptor = playersPos[0]
-        oldTime = 0.0        
+        
+        timeLocal = 0.0
+        deltaTime = 0.005
+        
         while not glfw.window_should_close(ventana):
             glClearColor(0.1 ,0.1 ,0.1 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
             numPlayer = 0
 
-            time = np.abs(np.sin((glfw.get_time()*6)))
-            time3 = (glfw.get_time() * 0.5) % 1
-            
+            #time = np.abs(np.sin((glfw.get_time()*6)))
+                          
+            if timeLocal >= 1.0:
+                timeLocal = 0.0
+                pelotaPos = convert2vec3(playerReceptor)
+                numPlayer = randomNumber(numPlayer,len(playersPos)-1)
+                playerReceptor = playersPos[numPlayer]
+            else:
+                timeLocal += deltaTime
+                
+                        
             #Animacion de la Pelota
 
-            direccion,changePlayer,oldTime = trayectoria(pelotaPos,playerReceptor,time3,oldTime)
+            direccion = trayectoria(pelotaPos,playerReceptor,timeLocal)
 
 
-            t_Origen = glm.translate(glm.mat4(1.0),-pelotaPos)
-            t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*4 ,glm.vec3(0.0 , 1.0 , 1.0))
-            t_Delta = glm.translate(glm.mat4(1.0),pelotaPos)
-            t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,time*0.0,0.0))
-            t_posX = glm.translate(glm.mat4(1.0),direccion)
+            #t_Origen = glm.translate(glm.mat4(1.0),-pelotaPos)
+            #t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*4 ,glm.vec3(0.0 , 1.0 , 1.0))
+            #t_Delta = glm.translate(glm.mat4(1.0),pelotaPos)
+            #t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,time*0.0,0.0))
+
+            t_posX = direccion
 
             #transform = t_posX*t_posV*t_Delta*t_rotar*t_Origen
             transform = t_posX
@@ -426,25 +443,12 @@ def main():
             #dibujarFigura(gouraund_programa,VAO_3,len(indices_3),projection,transform,vista,luz,[0.5,0.2,0.6],20.0)
             cubo.dibujar(transform)
 
-            if changePlayer:
-                pelotaPos = glm.vec3(
-                    playerReceptor[0],
-                    playerReceptor[1],
-                    playerReceptor[2]
-                )
-                newPlayer = rng.randint(0,len(playersPos)-1)
-                while numPlayer == newPlayer:
-                    newPlayer = rng.randint(0,len(playersPos)-1)
-                numPlayer = newPlayer
-                playerReceptor = playersPos[numPlayer]
-            
-            print(f"{direccion} - {pelotaPos} - {changePlayer}")
-
             glfw.swap_buffers(ventana)
             glfw.poll_events()
 
     except Exception as e:
         print(f"Error: \n {e}")
+        traceback.print_exc()
 
     finally:
         glDeleteVertexArrays(1,[VAO_1])
