@@ -131,20 +131,15 @@ void main()
 """
 
 class figura:
-    def __init__(self,VAO,vertices,indices,shaders,luz,material,origen):
-        #OpenGL
+
+    def __init__(self,VAO,indices,shaders,luz,material):
         self.VAO = VAO
-        self.vertices = vertices
         self.indices = indices
         self.programa = shaders["program"]
         self.proyeccion = shaders["projection"]
         self.vista = shaders["vista"]
         self.luz = luz
         self.material = material
-        #Posicion inicial
-        self.startPos = origen[0]
-        self.startScale = origen[2]
-        self.startRot = origen[1]
 
     def dibujar(self,transform):
         glUseProgram(self.programa)
@@ -166,6 +161,8 @@ class figura:
         glBindVertexArray(self.VAO)
         glDrawElements(GL_TRIANGLES, self.indices, GL_UNSIGNED_INT, None)
         glBindVertexArray(0)
+
+""" COMPILAR SHADER """
 
 def compilar_shader(codigo, tipo_shader):
     shader = glCreateShader(tipo_shader) 
@@ -216,26 +213,7 @@ def config_buffers(vertices,normales,indices):
 
     return VAO,VBO,EBO
 
-def dibujarFigura(programa,VAO,indices,projection,transform,vista,luz,difuse,shine):
-    glUseProgram(programa)
-
-    glUniform3f(glGetUniformLocation(programa,"luz_position"),luz[0],luz[1],luz[2]) 
-    glUniform3f(glGetUniformLocation(programa,"luz_ambient"),0.5 , 0.1 , 0.2)  
-    glUniform3f(glGetUniformLocation(programa,"luz_difuse"),0.1 , 0.1 , 0.1)   
-    glUniform3f(glGetUniformLocation(programa,"luz_specular"),1.0 , 1.0 , 1.0) 
-
-    glUniform3f(glGetUniformLocation(programa,"mat_ambient"),0.03 , 0.03 , 0.03) 
-    glUniform3f(glGetUniformLocation(programa,"mat_difuse"),difuse[0],difuse[1],difuse[2])     
-    glUniform3f(glGetUniformLocation(programa,"mat_specular"),1.0 , 1.0 , 1.0)   
-    glUniform1f(glGetUniformLocation(programa,"mat_brillo"),shine)                                               
-
-    glUniformMatrix4fv(glGetUniformLocation(programa,"transformacion"),1,GL_FALSE,glm.value_ptr(transform))
-    glUniformMatrix4fv(glGetUniformLocation(programa,"proyeccion"),1,GL_FALSE,glm.value_ptr(projection))
-    glUniformMatrix4fv(glGetUniformLocation(programa,"vista"),1,GL_FALSE,glm.value_ptr(vista))
-
-    glBindVertexArray(VAO)
-    glDrawElements(GL_TRIANGLES, indices, GL_UNSIGNED_INT, None)
-    glBindVertexArray(0)
+""" FIGURAS Y TRANSFORMACIONES """
 
 def transformacion(vertices,delta,scale):
     vertices_1 = []
@@ -255,7 +233,7 @@ def transformacion(vertices,delta,scale):
 
     return vertices_2
 
-def generate_cube(position,scale):
+def generate_cube(position=[0.0,0.0,0.0],scale=1.0):
     # Definir vértices para un cubo de tamaño 1x1x1 centrado en el origen
     vertices = [
         # Cara frontal
@@ -310,6 +288,93 @@ def generate_cube(position,scale):
 
     return vertices,normals,indices
 
+def generate_piramide(position=[0.0,0.0,0.0],scale=1.0):
+
+    vertices = [
+        [ 0.5, 0.0, 0.5],
+        [ 0.5, 0.0,-0.5],
+        [-0.5, 0.0,-0.5],
+        [-0.5, 0.0, 0.5],
+        [ 0.0, 0.5, 0.0]
+    ]
+
+    vertices = transformacion(vertices,position,scale)
+    
+    indices = [
+        0,1,2, 2,3,0,    #Base
+        0,1,4,
+        1,2,4,
+        2,3,4,
+        3,0,4
+    ]
+
+    normals =[
+         1.0, 0.0, 0.0,
+         1.0, 0.0, 0.0,
+        -1.0, 0.0, 0.0,
+        -1.0, 0.0, 0.0,
+         0.0, 1.0, 0.0,
+    ]
+
+    vertices = np.array(vertices, dtype=np.float32).flatten()
+    normals = np.array(normals, dtype=np.float32).flatten()
+    indices = np.array(indices, dtype=np.uint32)
+
+    return vertices,normals,indices
+
+def generate_plano(position=[0.0,0.0,0.0],scale=1.0):
+    vertices = [
+        [ 0.5, 0.0, 0.5],
+        [ 0.5, 0.0,-0.5],
+        [-0.5, 0.0,-0.5],
+        [-0.5, 0.0, 0.5]
+    ]
+    
+    vertices = transformacion(vertices,position,scale)
+
+    indices = [
+        0,1,2, 2,3,0
+    ]
+
+    normals = [
+        0.0,1.0,0.0,
+        0.0,1.0,0.0,
+        0.0,1.0,0.0,
+        0.0,1.0,0.0
+    ]
+
+    vertices = np.array(vertices, dtype=np.float32).flatten()
+    normals = np.array(normals, dtype=np.float32).flatten()
+    indices = np.array(indices, dtype=np.uint32)
+
+    return vertices,normals,indices
+
+def generate_icosaedro(position=[0.0,0.0,0.0],scale=1.0):
+    t = (1.0 + np.sqrt(5.0)) / 2.0
+    prop = scale / np.sqrt(t**2 + 1)
+    t *= prop
+
+    vertices = [
+        [-prop,  t,  0], [ prop,  t,  0], [-prop, -t,  0], [ prop, -t,  0],
+        [ 0, -prop,  t], [ 0,  prop,  t], [ 0, -prop, -t], [ 0,  prop, -t],
+        [ t,  0, -prop], [ t,  0,  prop], [-t,  0, -prop], [-t,  0,  prop]
+    ]
+
+    vertices = transformacion(vertices,position,scale)
+
+    indices = [
+        0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11,
+        1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+        3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9,
+        4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1
+    ]
+
+    vertices = np.array(vertices, dtype=np.float32).flatten()
+    normals = np.array(vertices, dtype=np.float32).flatten()
+    indices = np.array(indices, dtype=np.uint32)
+
+    return vertices,normals,indices
+# Auxiliares
 def trayectoria(inicio,fin,delta):
     position = [inicio[0]*(1-delta)+fin[0]*delta,inicio[1]*(1-delta)+fin[1]*delta,inicio[2]*(1-delta)+fin[2]*delta]
     return position
@@ -349,9 +414,9 @@ def main():
     centro = glm.vec3(0.0,0.0,0.0)
     arriba = glm.vec3(0.0,1.0,0.0)
 
-    vertices_1, normales_1, indices_1 = generate_cube([0.0, 0.0, 0.0], 0.4)
-    vertices_2, normales_2, indices_2 = generate_cube([-0.4, 0.0, 0.0], 0.6)
-    vertices_3, normales_3, indices_3 = generate_cube([0.0, 0.0, 0.5], 0.5)
+    vertices_Pelota, normales_Pelota, indices_Pelota = generate_icosaedro(scale=0.4)
+    vertices_Monte1, normales_Monte1, indices_Monte1 = generate_piramide(scale=0.4)
+    vertices_Playa, normales_Playa, indices_Playa = generate_plano(scale=0.6)
 
     playersPos = [
         [ 0.3 , 0.0 , 0.3],
@@ -366,9 +431,9 @@ def main():
         phong_programa = crear_programa_shader(phong_fragmentCode,phong_vertexCode)
         gouraund_programa = crear_programa_shader(gouaud_fragmentCode,gouraud_vertexCode)
 
-        VAO_1,VBO_1,EBO_1 = config_buffers(vertices_1,normales_1,indices_1)
-        VAO_2,VBO_2,EBO_2 = config_buffers(vertices_2,normales_2,indices_2)
-        VAO_3,VBO_3,EBO_3 = config_buffers(vertices_3,normales_3,indices_3)
+        VAO_Pelota,VBO_Pelota,EBO_Pelota = config_buffers(vertices_Pelota,normales_Pelota,indices_Pelota)
+        VAO_Monte1,VBO_Monte1,EBO_Monte1 = config_buffers(vertices_Monte1,normales_Monte1,indices_Monte1)
+        VAO_Playa,VBO_Playa,EBO_Playa = config_buffers(vertices_Playa,normales_Playa,indices_Playa)
 
         projection = glm.perspective(glm.radians(fov),aspect_ratio,cerca,lejos)
         vista = glm.lookAt(ojo,centro,arriba)
@@ -390,47 +455,49 @@ def main():
             "spc":[1.0 , 1.0 , 1.0],
             "brillo":30.0
         }
-        cuboOrigen = [
-            [ 0.0 , 0.0 , 0.0],
-            [ 0.0 , 0.0 , 0.0],
-            1.0
-        ]
 
         numPlayer = 1
 
-        cubo = figura(VAO_1,vertices_1,len(indices_1),cuboShaders,cuboLuz,cuboMaterial,cuboOrigen)
+        pelota = figura(VAO_Pelota,len(indices_Pelota),cuboShaders,cuboLuz,cuboMaterial)
+        monte1 = figura(VAO_Monte1,len(indices_Monte1),cuboShaders,cuboLuz,cuboMaterial)
+        playa = figura(VAO_Playa,len(indices_Playa),cuboShaders,cuboLuz,cuboMaterial)
 
         pelotaPos = playersPos[0]
         playerReceptor = playersPos[numPlayer]
         
-        timeLocal = 0.0
-        deltaTime = 0.01
+        timeLocal_1 = 0.0
+        deltaTime_1 = 0.0005
         
         while not glfw.window_should_close(ventana):
             glClearColor(0.7 ,0.7 ,0.7 ,1.0 )
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)               
-                        
+            
+            """ 
             #Animacion de la Pelota
-            direccion = trayectoria(pelotaPos,playerReceptor,timeLocal)
-            timeVertical = -(2*timeLocal-1)**4+1 
+            direccion = trayectoria(pelotaPos,playerReceptor,timeLocal_1)
+            timeVertical = -(2*timeLocal_1-1)**4+1 
 
-            t_Origen = glm.translate(glm.mat4(1.0),-convert2vec3(direccion))
-            t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*3 ,glm.vec3(0.4 , 1.0 , 0.0))
-            t_Delta = glm.translate(glm.mat4(1.0),convert2vec3(direccion))
-            t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,timeVertical*1.0,0.0))
-            t_posX = glm.translate(glm.mat4(1.0),convert2vec3(direccion))
+            pelota_t_Origen = glm.translate(glm.mat4(1.0),-convert2vec3(direccion))
+            pelota_t_rotar = glm.rotate(glm.mat4(1.0), glfw.get_time()*3 ,glm.vec3(0.4 , 1.0 , 0.0))
+            pelota_t_Delta = glm.translate(glm.mat4(1.0),convert2vec3(direccion))
+            pelota_t_posV = glm.translate(glm.mat4(1.0),glm.vec3(0.0,timeVertical*1.0,0.0))
+            pelota_t_posX = glm.translate(glm.mat4(1.0),convert2vec3(direccion))
 
-            transform = t_posX*t_posV*t_Delta*t_rotar*t_Origen
+            pelota_transform = pelota_t_posX*pelota_t_posV*pelota_t_Delta*pelota_t_rotar*pelota_t_Origen
+            """
 
-            #dibujarFigura(phong_programa,VAO_1,len(indices_1),projection,transform,vista,luz,[0.2,0.5,0.2],30.0)
-            #dibujarFigura(phong_programa,VAO_2,len(indices_2),projection,transform,vista,luz,[1.0,1.0,1.0],60.0)
-            #dibujarFigura(gouraund_programa,VAO_3,len(indices_3),projection,transform,vista,luz,[0.5,0.2,0.6],20.0)
-            cubo.dibujar(transform)
+            #Dibujado de Figuras
+            """ 
+            pelota.dibujar(pelota_transform)
+            monte1.dibujar(glm.mat4(1.0))
+            """
+            playa.dibujar(glm.mat4(1.0))
 
-            timeLocal += deltaTime
+
+            timeLocal_1 += deltaTime_1
                     
-            if timeLocal >= 1.0:
-                timeLocal = 0.0
+            if timeLocal_1 >= 1.0:
+                timeLocal_1 = 0.0
                 pelotaPos = playerReceptor
                 numPlayer = randomNumber(numPlayer,len(playersPos)-1)
                 playerReceptor = playersPos[numPlayer]
@@ -443,15 +510,15 @@ def main():
         traceback.print_exc()
 
     finally:
-        glDeleteVertexArrays(1,[VAO_1])
-        glDeleteVertexArrays(1,[VAO_2])
-        glDeleteVertexArrays(1,[VAO_3])
-        glDeleteBuffers(2,VBO_1)
-        glDeleteBuffers(2,VBO_2)
-        glDeleteBuffers(2,VBO_3)
-        glDeleteBuffers(1,[EBO_1])
-        glDeleteBuffers(1,[EBO_2])
-        glDeleteBuffers(1,[EBO_3])
+        glDeleteVertexArrays(1,[VAO_Pelota])
+        glDeleteVertexArrays(1,[VAO_Monte1])
+        glDeleteVertexArrays(1,[VAO_Playa])
+        glDeleteBuffers(2,VBO_Pelota)
+        glDeleteBuffers(2,VBO_Monte1)
+        glDeleteBuffers(2,VBO_Playa)
+        glDeleteBuffers(1,[EBO_Pelota])
+        glDeleteBuffers(1,[EBO_Monte1])
+        glDeleteBuffers(1,[EBO_Playa])
 
         glDeleteProgram(gouraund_programa)
         glDeleteProgram(phong_programa)
